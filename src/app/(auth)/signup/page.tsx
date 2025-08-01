@@ -1,0 +1,104 @@
+'use client';
+import {useState, useEffect} from 'react';
+import React from "react";
+import { useRouter } from 'next/navigation';
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import Link from "next/dist/client/link";
+
+
+const Signup = () => {
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError("");
+    setSuccess("");
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const response = await fetch("http://localhost:8000/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, username, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 409) {
+          setError("Username already exists. Please choose a different username.");
+        } else {
+          setError(data.message || "Signup failed. Please try again.");
+        }
+        return;
+      }
+
+      setSuccess("Signup successful!");
+      router.push('/login');
+    } catch (error) {
+      setError("Signup failed. Please try again.");
+      console.error("Error during signup:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
+      <Card className="w-full max-w-md p-6">
+        <CardHeader>
+          <CardTitle>Signup</CardTitle>
+          <CardDescription>please enter your details</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            <Label htmlFor="email">Email</Label>
+            <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+            <Label htmlFor="username">Username</Label>
+            <Input id="username" type="text" required value={username} onChange={(e) => setUsername(e.target.value)} />
+            <Label htmlFor="password">Password</Label>
+            <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+            <Label htmlFor="confirm-password">Confirm Password</Label>
+            <Input id="confirm-password" type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+            <div className="flex items-center space-x-4 mt-4">
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? 'Signing up...' : 'Sign up'}
+              </Button>
+              <Link className="text-black hover:underline" href="/login">
+                already registered?
+              </Link>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+      {error && <p className="text-red-500 mt-4">{error}</p>}
+      {success && <p className="text-green-500 mt-4">{success}</p>}
+    </div>
+  );
+};
+
+export default Signup;
