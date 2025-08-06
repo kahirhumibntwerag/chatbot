@@ -1,4 +1,4 @@
-
+import { Toaster } from "@/components/ui/sonner";
 import { ThreadProvider } from "@/context/ThreadContext";
 import "./globals.css";
 
@@ -8,11 +8,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" data-theme="light">
       <body>
-
-
-            {children}
+        {children}
+        <Toaster />
       </body>
     </html>
   );

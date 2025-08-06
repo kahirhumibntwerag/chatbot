@@ -1,0 +1,9 @@
+[data-theme="light"] {
+  --shiki-bg: #ffffff;
+  --shiki-fg: #24292e;
+}
+
+[data-theme="dark"] {
+  --shiki-bg: #24292e;
+  --shiki-fg: #e1e4e8;
+}

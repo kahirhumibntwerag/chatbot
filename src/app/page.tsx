@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { jwtDecode } from 'jwt-decode';
 import { getUser } from '@/helpers';
+import FileUploader from '@/components/ui/fileUploader';
 
 export default function Home() {
   
@@ -12,6 +13,7 @@ export default function Home() {
       <h1 className="text-2xl font-bold">
         Welcome
       </h1>
+      <FileUploader storeName="test" />
     </div>
   );
 }

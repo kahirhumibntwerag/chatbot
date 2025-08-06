@@ -39,21 +39,24 @@ const Login = () => {
           "Content-Type": "application/x-www-form-urlencoded",
         },
         body: formData,
-        credentials: 'include', // Important: this is needed to include cookies
+        credentials: 'include', // This allows cookies to be sent and received
       });
 
       const data = await response.json();
-      console.log("Response data:", data);
-
+      
       if (!response.ok) {
         setError(data.detail || "Login failed. Please try again.");
         return;
       }
 
+      // The backend will set the cookie automatically
+      // No need to manually set it here since credentials: 'include' is enabled
+
       setSuccess("Login successful!");
-      router.push("/chat"); // or wherever you want to redirect
+      router.push("/chat");
     } catch (error) {
       setError("An unexpected error occurred. Please try again.");
+      console.error(error);
     } finally {
       setIsLoading(false);
     }

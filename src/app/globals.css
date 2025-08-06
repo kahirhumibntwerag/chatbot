@@ -125,3 +125,28 @@
     @apply bg-background text-foreground;
   }
 }
+
+
+[data-theme="light"] {
+  --shiki-bg: #ffffff;
+  --shiki-fg: #24292e;
+}
+
+[data-theme="dark"] {
+  --shiki-bg: #24292e;
+  --shiki-fg: #e1e4e8;
+}
+
+pre {
+  background-color: transparent !important;
+}
+
+.dark pre code {
+  color: var(--shiki-dark) !important;
+  background-color: var(--shiki-dark-bg) !important;
+}
+
+pre code {
+  color: var(--shiki-light) !important;
+  background-color: var(--shiki-light-bg) !important;
+}
