@@ -30,6 +30,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
+import { ThemeToggle } from "./themeToggle";
 
 async function logout() {
   await fetch("http://localhost:8000/logout", {
@@ -171,6 +172,7 @@ export function AppSidebar() {
     <Sidebar variant="floating" collapsible="icon">
       <SidebarContent>
         <SidebarGroup>
+          <ThemeToggle />
           <Button
             variant="default"
             className="w-full justify-start mb-2 hover:cursor-pointer"

@@ -3,3 +3,9 @@ const config = {
 };
 
 export default config;
+module.exports = {
+  // ...other config
+  plugins: [
+    require('tailwind-scrollbar'),
+  ],
+}
