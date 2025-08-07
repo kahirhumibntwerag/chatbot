@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { toast } from 'sonner';
+import React, { useState, useEffect } from 'react';
+import { toast } from '@/components/ui/sonner';
 import { Upload } from 'lucide-react';
+import axios, { AxiosProgressEvent } from 'axios';
 
 interface FileUploaderProps {
   storeName: string | null;
@@ -9,13 +10,14 @@ interface FileUploaderProps {
 const FileUploader = ({ storeName }: FileUploaderProps) => {
   const [loading, setLoading] = useState(false);
 
+
   const handleFileUpload = async (file: File) => {
     if (!storeName) {
       toast.error("Please select a store first");
       return;
     }
 
-    const toastId = toast.loading("Preparing to upload file...");
+    setLoading(true);
 
     // Get JWT token from cookies
     const cookies = document.cookie.split(";");
@@ -24,9 +26,8 @@ const FileUploader = ({ storeName }: FileUploaderProps) => {
       ?.split("=")[1];
 
     if (!accessToken) {
-      toast.error("No authentication token found. Please login again.", {
-        id: toastId,
-      });
+      toast.error("No authentication token found. Please login again.");
+      setLoading(false);
       return;
     }
 
@@ -34,43 +35,122 @@ const FileUploader = ({ storeName }: FileUploaderProps) => {
     formData.append("fileb", file);
     formData.append("store_name", storeName);
 
-    try {
-      toast.loading("Uploading file...", { id: toastId });
-
-      const response = await fetch("http://localhost:8000/add_to_store", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: formData,
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Upload failed");
+    // Create a toast for the upload process with file info
+    const uploadToastId = toast.loading(
+      `📤 Uploading ${file.name}`,
+      {
+        description: `Preparing file upload... (${(file.size / 1024 / 1024).toFixed(2)} MB)`
       }
+    );
 
-      const data = await response.json();
-      toast.success(
-        `File uploaded successfully! Created ${data.chunks_created} chunks.`,
-        { id: toastId }
+    try {
+      const response = await axios.post(
+        "http://localhost:8000/add_to_store",
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'multipart/form-data',
+          },
+          withCredentials: true,
+          onUploadProgress: (progressEvent: AxiosProgressEvent) => {
+            if (progressEvent.total) {
+              const percentCompleted = Math.round(
+                (progressEvent.loaded * 100) / progressEvent.total
+              );
+              const uploadedMB = (progressEvent.loaded / 1024 / 1024).toFixed(2);
+              const totalMB = (progressEvent.total / 1024 / 1024).toFixed(2);
+              
+              // Update the same toast with progress
+              toast.loading(
+                `📤 Uploading ${file.name} - ${percentCompleted}%`,
+                { 
+                  id: uploadToastId,
+                  description: `${uploadedMB}MB / ${totalMB}MB uploaded`
+                }
+              );
+            }
+          },
+        }
       );
+
+      // Processing phase - update the same toast
+      toast.loading(
+        "🔄 Processing file...",
+        { 
+          id: uploadToastId,
+          description: "Creating chunks and indexing content"
+        }
+      );
+
+      const data = response.data;
+      
+      // Success confirmation - dismiss the loading toast and show success
+      toast.dismiss(uploadToastId);
+      
+      toast.success(
+        `✅ File uploaded successfully!`,
+        { 
+          description: `📄 ${file.name} processed into ${data.chunks_created || 'multiple'} chunks`,
+          duration: 5000
+        }
+      );
+
+      // Store confirmation as separate toast
+      toast.info(
+        `🗂️ Added to store: ${storeName}`,
+        {
+          description: `File is now ready for querying. Chunks: ${data.chunks_created || 'N/A'}`,
+          duration: 4000
+        }
+      );
+
     } catch (error) {
       console.error("Failed to upload file:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to upload file",
-        { id: toastId }
-      );
+      
+      // Dismiss the loading toast first
+      toast.dismiss(uploadToastId);
+      
+      if (axios.isAxiosError(error)) {
+        const errorMessage = error.response?.data?.detail || error.message;
+        const statusCode = error.response?.status;
+        
+        toast.error(
+          `❌ Upload failed (${statusCode}): ${errorMessage}`,
+          { 
+            duration: 6000
+          }
+        );
+
+        // Additional error info based on status
+        if (statusCode === 401) {
+          toast.warning("⚠️ Session expired. Please login again.", {
+            duration: 5000
+          });
+        } else if (statusCode === 413) {
+          toast.warning("⚠️ File too large. Please try a smaller file.", {
+            duration: 5000
+          });
+        }
+      } else {
+        toast.error(
+          `❌ Upload failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+          { 
+            duration: 6000
+          }
+        );
+      }
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <label className="flex items-center gap-2 cursor-pointer w-full px-2 py-1.5 text-sm">
+    <label className={`flex items-center gap-2 cursor-pointer w-full px-2 py-1.5 text-sm ${
+      loading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-accent'
+    }`}>
       <Upload className="mr-2 h-4 w-4" />
-      <span>Upload File</span>
+      <span>{loading ? 'Uploading...' : 'Upload File'}</span>
       <input
         type="file"
         className="hidden"
@@ -79,10 +159,14 @@ const FileUploader = ({ storeName }: FileUploaderProps) => {
           const file = e.target.files?.[0];
           if (file) {
             if (file.type !== "application/pdf") {
-              toast.error("Please upload a PDF file");
+              toast.error("❌ Please upload a PDF file only");
               e.target.value = "";
               return;
             }
+            
+            // Show file selection confirmation
+            toast.info(`📁 Selected: ${file.name}`, { duration: 2000 });
+            
             await handleFileUpload(file);
             e.target.value = "";
           }

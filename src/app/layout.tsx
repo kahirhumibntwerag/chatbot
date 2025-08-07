@@ -1,5 +1,4 @@
 import { Toaster } from "@/components/ui/sonner";
-import { ThreadProvider } from "@/context/ThreadContext";
 import "./globals.css";
 import { ThemeProvider } from "@/context/ThemeProvider";
 
@@ -19,6 +18,7 @@ export default function RootLayout({
         >
           {children}
         </ThemeProvider>
+        <Toaster />
       </body>
     </html>
   )
