@@ -150,3 +150,60 @@ pre code {
   color: var(--shiki-light) !important;
   background-color: var(--shiki-light-bg) !important;
 }
+
+@keyframes neonBorder {
+  0% {
+    border-color: rgb(88, 101, 242);
+    box-shadow: 0 0 5px rgb(88, 101, 242),
+                0 0 10px rgb(88, 101, 242);
+  }
+  50% {
+    border-color: rgb(170, 91, 242);
+    box-shadow: 0 0 5px rgb(170, 91, 242),
+                0 0 10px rgb(170, 91, 242);
+  }
+  100% {
+    border-color: rgb(88, 101, 242);
+    box-shadow: 0 0 5px rgb(88, 101, 242),
+                0 0 10px rgb(88, 101, 242);
+  }
+}
+
+@keyframes neonBorderRotate {
+  0% {
+    border-image: conic-gradient(
+      from 0deg,
+      rgb(88, 101, 242),
+      rgb(124, 91, 242),
+      rgb(170, 91, 242),
+      rgb(124, 91, 242),
+      rgb(88, 101, 242)
+    ) 1;
+    box-shadow: 0 0 10px rgb(88, 101, 242);
+  }
+  100% {
+    border-image: conic-gradient(
+      from 360deg,
+      rgb(88, 101, 242),
+      rgb(124, 91, 242),
+      rgb(170, 91, 242),
+      rgb(124, 91, 242),
+      rgb(88, 101, 242)
+    ) 1;
+    box-shadow: 0 0 10px rgb(170, 91, 242);
+  }
+}
+
+.neon-border {
+  border: 2px solid;
+  border-radius: 1rem;
+  animation: neonBorderRotate 3s linear infinite;
+  transition: all 0.3s ease;
+}
+
+/* Add these utility classes for better border-image support */
+@property --angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}

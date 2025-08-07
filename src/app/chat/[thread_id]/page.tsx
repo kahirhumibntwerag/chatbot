@@ -33,89 +33,14 @@ import { toast } from "sonner";
 import { Database as LucideDatabase } from "lucide-react";
 import FileUploader from "@/components/ui/fileUploader";
 import { motion, AnimatePresence } from "framer-motion";
+import { useChatHistory } from "@/hooks/useChatHistory";
+import { StoreIndicator } from "@/components/ui/StoreIndicator";
+import { useStoreManagement } from "@/hooks/useStoreManagement";
+import { useAutoResize } from "@/hooks/useAutoResizeTextArea";
+import { useAutoScroll } from "@/hooks/useAutoScroll";
+import { useChatSubmission } from "@/hooks/useChatSubmission";
 
 // Create a custom hook for chat history management
-const useChatHistory = (thread_id: string) => {
-  const [messages, setMessages] = useState<
-    { text: string; sender: "user" | "model" }[]
-  >([]);
-
-  // Load chat history only once when component mounts
-  useEffect(() => {
-    const saved = localStorage.getItem(`chat_${thread_id}`);
-    if (saved) {
-      try {
-        const parsedMessages = JSON.parse(saved);
-        setMessages(parsedMessages);
-      } catch (error) {
-        console.error("Error parsing chat history:", error);
-        // Handle corrupted data by clearing it
-        localStorage.removeItem(`chat_${thread_id}`);
-      }
-    }
-  }, [thread_id]);
-
-  // Save chat history with debounce to prevent excessive writes
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (messages.length > 0) {
-        localStorage.setItem(`chat_${thread_id}`, JSON.stringify(messages));
-      }
-    }, 1000); // Debounce for 1 second
-
-    return () => clearTimeout(timeoutId);
-  }, [messages, thread_id]);
-
-  return [messages, setMessages] as const;
-};
-
-const StoreIndicator = ({
-  storeName,
-  stores,
-  onStoreSelect,
-}: {
-  storeName: string | null;
-  stores: Store[];
-  onStoreSelect: (storeName: string | null) => void;
-}) => {
-  if (!storeName) return null;
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger className="outline-none">
-        <div className="flex items-center justify-center gap-2 rounded-l-full h-full text-sm p-1 cursor-pointer hover:bg-accent">
-          <LucideDatabase className="text-primary" />
-          <span className="text-primary font-medium">
-            {storeName || "Select Store"}
-          </span>
-        </div>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="start"
-        className="w-56 bg-popover border rounded-xl"
-      >
-        <DropdownMenuItem
-          onClick={() => onStoreSelect(null)}
-          className="focus:bg-accent hover:bg-accent rounded-lg m-1 text-popover-foreground"
-        >
-          {!storeName && <Check className="mr-2 h-4 w-4" />}
-          No store
-        </DropdownMenuItem>
-        {stores.map((store) => (
-          <DropdownMenuItem
-            key={store.id}
-            onClick={() => onStoreSelect(store.store_name)}
-            className="focus:bg-accent hover:bg-accent rounded-lg m-1 text-popover-foreground"
-          >
-            {store.store_name === storeName && (
-              <Check className="mr-2 h-4 w-4" />
-            )}
-            {store.store_name}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-};
 
 const messageAnimations = {
   initial: { height: 0, opacity: 0, y: 20 },
@@ -133,16 +58,17 @@ const containerAnimations = {
 export default function Home() {
   const { thread_id } = useParams();
   const [input, setInput] = useState("");
-  const [storeName, setStoreName] = useState<string | null>(() => {
-    if (typeof window !== "undefined") {
-      const savedStore = localStorage.getItem("selectedStore");
-      return savedStore;
-    }
-    return null;
-  });
-  const [isCreateStoreOpen, setIsCreateStoreOpen] = useState(false);
+  const {
+    stores,
+    storeName,
+    setStoreName,
+    isLoading: storeLoading,
+    error: storeError,
+    createStore,
+    isCreateStoreOpen,
+    setIsCreateStoreOpen,
+  } = useStoreManagement();
   const [newStoreName, setNewStoreName] = useState("");
-  const [stores, setStores] = useState<Store[]>([]);
   const normalizedThreadId =
     typeof thread_id === "string"
       ? thread_id
@@ -154,79 +80,18 @@ export default function Home() {
   const [scrollDown, setScrollDown] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  console.log("messages: ", messages);
 
-  // Auto-scroll
-  useEffect(() => {
-    // Scroll to bottom with a small delay to ensure content is rendered
-    const scrollTimeout = setTimeout(() => {
-      if (scrollRef.current) {
-        scrollRef.current.scrollTo({
-          top: scrollRef.current.scrollHeight,
-          behavior: "smooth",
-        });
-      }
-    }, 100);
-
-    return () => clearTimeout(scrollTimeout);
-  }, [scrollDown, thread_id]);
-
-  // Auto-resize textarea
-  useEffect(() => {
-    if (textareaRef.current) {
-      const textarea = textareaRef.current;
-      textarea.style.height = "auto"; // Reset height to allow shrinking
-      const scrollHeight = textarea.scrollHeight;
-      const maxHeight = 200; // Max height in pixels (approx. 8-10 rows)
-
-      if (scrollHeight > maxHeight) {
-        textarea.style.height = `${maxHeight}px`;
-        textarea.style.overflowY = "auto";
-      } else {
-        textarea.style.height = `${scrollHeight}px`;
-        textarea.style.overflowY = "hidden";
-      }
+  // Update handleCreateStore to use the hook
+  const handleCreateStore = async () => {
+    const success = await createStore(newStoreName);
+    if (success) {
+      setNewStoreName("");
+      setIsCreateStoreOpen(false);
     }
-  }, [input]);
+  };
 
-  // Fetch stores when component mounts
-  useEffect(() => {
-    const fetchStores = async () => {
-      try {
-        // Get the JWT token from cookies
-        const cookies = document.cookie.split(";");
-        const accessToken = cookies
-          .find((cookie) => cookie.trim().startsWith("jwt="))
-          ?.split("=")[1];
-
-        if (!accessToken) {
-          toast.error("No authentication token found. Please login again.");
-          return;
-        }
-
-        const response = await fetch("http://localhost:8000/stores", {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-          credentials: "include",
-        });
-
-        if (response.ok) {
-          const data: StoresResponse = await response.json();
-          setStores(data.stores);
-        } else if (response.status === 401) {
-          toast.error("Session expired. Please login again.");
-        } else {
-          throw new Error("Failed to fetch stores");
-        }
-      } catch (error) {
-        console.error("Failed to fetch stores:", error);
-        toast.error("Failed to load stores");
-      }
-    };
-
-    fetchStores();
-  }, []);
+  useAutoResize(textareaRef, input, { maxHeight: 200 });
+  useAutoScroll(scrollRef, [scrollDown, thread_id]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) =>
     setInput(e.target.value);
@@ -238,210 +103,17 @@ export default function Home() {
     }
   };
 
+  const { isLoading: submissionLoading, submitMessage } = useChatSubmission({
+    thread_id: normalizedThreadId,
+    storeName,
+    onMessageUpdate: setMessages,
+    setScrollDown,
+  });
+
   const handleSubmit = () => {
-    setScrollDown(!scrollDown);
-    if (!input.trim() || isLoading) return;
-
-    const userText = input.trim();
-    setMessages((prev) => [...prev, { text: userText, sender: "user" }]);
+    submitMessage(input);
     setInput("");
-    setIsLoading(true);
-
-    // Get the JWT token from cookies
-    const cookies = document.cookie.split(";");
-    const accessToken = cookies
-      .find((cookie) => cookie.trim().startsWith("jwt="))
-      ?.split("=")[1];
-
-    if (!accessToken) {
-      console.error("No JWT token found in cookies");
-      setIsLoading(false);
-      return;
-    }
-
-    const eventSource = new EventSource(
-      `http://localhost:8000/chat/stream?thread_id=${thread_id}&message=${encodeURIComponent(
-        userText
-      )}&token=${accessToken}&store_name=${storeName}`
-    );
-
-    let messageBuffer = "";
-
-    eventSource.onmessage = (event) => {
-      // Process the incoming data
-      let cleanData = event.data;
-      if (event.data) {
-        // Replace four newlines with two newlines, then remove all double newlines
-        cleanData = event.data;
-
-        messageBuffer += cleanData;
-      }
-
-      setMessages((prev) => {
-        const newMessages = [...prev];
-        const lastMessage = newMessages[newMessages.length - 1];
-
-        if (lastMessage && lastMessage.sender === "model") {
-          newMessages[newMessages.length - 1] = {
-            ...lastMessage,
-            text: messageBuffer,
-          };
-        } else {
-          newMessages.push({ text: messageBuffer, sender: "model" });
-        }
-        return newMessages;
-      });
-    };
-
-    eventSource.onerror = () => {
-      console.error("SSE connection error");
-      eventSource.close();
-      setIsLoading(false);
-    };
-
-    eventSource.addEventListener("done", () => {
-      eventSource.close();
-      setIsLoading(false);
-    });
   };
-
-  // Update the store creation handler
-  const handleCreateStore = async () => {
-    try {
-      // Get the JWT token from cookies
-      const cookies = document.cookie.split(";");
-      const accessToken = cookies
-        .find((cookie) => cookie.trim().startsWith("jwt="))
-        ?.split("=")[1];
-
-      if (!accessToken) {
-        toast.error("No authentication token found. Please login again.");
-        return;
-      }
-
-      const response = await fetch("http://localhost:8000/create_store", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`, // Add this line
-        },
-        body: JSON.stringify({ store_name: newStoreName }),
-        credentials: "include",
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setStores((prev) => [
-          ...prev,
-          {
-            id: data.store_id,
-            store_name: data.store_name,
-            created_at: new Date().toISOString(),
-          },
-        ]);
-        setStoreName(data.store_name);
-        setNewStoreName("");
-        setIsCreateStoreOpen(false);
-        toast.success("Store created successfully");
-      } else if (response.status === 401) {
-        toast.error("Session expired. Please login again.");
-      } else {
-        const error = await response.json();
-        throw new Error(error.detail);
-      }
-    } catch (error) {
-      console.error("Failed to create store:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to create store"
-      );
-    }
-  };
-
-  // Update the file upload handler
-  const handleFileUpload = async (file: File) => {
-    if (!storeName) {
-      toast.error("Please select a store first");
-      return;
-    }
-
-    // Create a unique toast ID for updating the same toast
-    const toastId = toast.loading("Preparing to upload file...");
-
-    // Get the JWT token from cookies
-    const cookies = document.cookie.split(";");
-    const accessToken = cookies
-      .find((cookie) => cookie.trim().startsWith("jwt="))
-      ?.split("=")[1];
-
-    if (!accessToken) {
-      toast.error("No authentication token found. Please login again.", {
-        id: toastId,
-      });
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append("fileb", file);
-    formData.append("store_name", storeName);
-
-    try {
-      toast.loading("Uploading file...", { id: toastId });
-
-      const response = await fetch("http://localhost:8000/add_to_store", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: formData,
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Upload failed");
-      }
-
-      const data = await response.json();
-      toast.success(
-        `File uploaded successfully! Created ${data.chunks_created} chunks.`,
-        {
-          id: toastId,
-        }
-      );
-    } catch (error) {
-      console.error("Failed to upload file:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to upload file",
-        {
-          id: toastId,
-        }
-      );
-    }
-  };
-
-  // Add effect to save storeName changes to localStorage
-  useEffect(() => {
-    if (storeName === null) {
-      localStorage.removeItem("selectedStore");
-    } else {
-      localStorage.setItem("selectedStore", storeName);
-    }
-  }, [storeName]);
-
-  // Add this effect after your other useEffects
-  useEffect(() => {
-    const handleStoreChange = () => {
-      const selectedStore = localStorage.getItem("selectedStore");
-      setStoreName(selectedStore);
-    };
-
-    // Listen for the custom event
-    window.addEventListener("storeSelected", handleStoreChange);
-
-    return () => {
-      window.removeEventListener("storeSelected", handleStoreChange);
-    };
-  }, []);
 
   return (
     <div className="flex h-screen w-full ">
@@ -494,7 +166,7 @@ export default function Home() {
                       </motion.div>
                     ))}
 
-                    {isLoading && (
+                    {submissionLoading && (
                       <motion.div
                         className="flex justify-start"
                         initial={{ opacity: 0 }}
@@ -525,9 +197,9 @@ export default function Home() {
           >
             <div className="max-w-[800px] mx-auto px-4 py-2">
               <motion.div
-                className={`flex flex-col w-full border-2 rounded-2xl p-2 
-              shadow-xl bg-background/80 backdrop-blur-sm
-              hover:shadow-2xl transition-all duration-300`}
+                className={`flex flex-col w-full p-2
+    shadow-xl bg-background/80 backdrop-blur-sm neon-border
+    hover:shadow-2xl transition-all duration-300`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, ease: "easeInOut" }}
