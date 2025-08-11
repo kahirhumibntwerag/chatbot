@@ -88,7 +88,7 @@ const Signup = () => {
               <Button type="submit" disabled={isLoading}>
                 {isLoading ? 'Signing up...' : 'Sign up'}
               </Button>
-              <Link className="text-black hover:underline" href="/login">
+              <Link className="hover:underline" href="/login">
                 already registered?
               </Link>
             </div>

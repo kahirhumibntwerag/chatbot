@@ -39,23 +39,26 @@ import { useStoreManagement } from "@/hooks/useStoreManagement";
 import { useAutoResize } from "@/hooks/useAutoResizeTextArea";
 import { useAutoScroll } from "@/hooks/useAutoScroll";
 import { useChatSubmission } from "@/hooks/useChatSubmission";
+import { useRouter } from "next/navigation";
+import { Kamehameha } from "@/components/animations/Kamehameha";
 
 // Create a custom hook for chat history management
 
 const messageAnimations = {
-  initial: { height: 0, opacity: 0, y: 20 },
+  initial: { height: 0, opacity: 0, y: 10 },
   animate: { height: "auto", opacity: 1, y: 0 },
-  exit: { height: 0, opacity: 0, y: -20 },
-  transition: { duration: 1, ease: "easeInOut" },
+  exit: { height: 0, opacity: 0, y: -10 },
+  transition: { duration: 0.2, ease: "easeOut" },
 };
 
 const containerAnimations = {
   initial: { height: 0 },
   animate: { height: "auto" },
-  transition: { duration: 10, ease: "easeInOut" },
+  transition: { duration: 0.2, ease: "easeOut" },
 };
 
 export default function Home() {
+  const router = useRouter();
   const { thread_id } = useParams();
   const [input, setInput] = useState("");
   const {
@@ -76,10 +79,14 @@ export default function Home() {
       ? thread_id[0] ?? ""
       : "";
   const [messages, setMessages] = useChatHistory(normalizedThreadId);
+  // New state to control one-time animation
+  const [animateFirstBatch, setAnimateFirstBatch] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [scrollDown, setScrollDown] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(
+    null
+  ) as React.RefObject<HTMLTextAreaElement>;
 
   // Update handleCreateStore to use the hook
   const handleCreateStore = async () => {
@@ -111,16 +118,40 @@ export default function Home() {
   });
 
   const handleSubmit = () => {
+    if (!input.trim()) return;
+    // Trigger animation ONLY if this is the very first message in this thread
+    if (messages.length === 0) {
+      setAnimateFirstBatch(true);
+    }
     submitMessage(input);
     setInput("");
   };
 
-  return (
-    <div className="flex h-screen w-full ">
-      <SidebarProvider>
-        <AppSidebar />
-        <SidebarTrigger />
+  // After first animation plays once, disable further animations
+  useEffect(() => {
+    if (animateFirstBatch && messages.length > 0) {
+      // Allow one paint frame with animation, then disable
+      const t = requestAnimationFrame(() => setAnimateFirstBatch(false));
+      return () => cancelAnimationFrame(t);
+    }
+  }, [animateFirstBatch, messages.length]);
 
+  const cookies = document.cookie.split(";");
+  const accessToken = cookies
+    .find((cookie) => cookie.trim().startsWith("jwt="))
+    ?.split("=")[1];
+  useEffect(() => {
+    if (!accessToken) {
+      router.push("/login");
+    }
+  }, [accessToken]);
+
+  return (
+    <SidebarProvider>
+      <AppSidebar />
+
+      <SidebarTrigger />
+      <div className="flex h-screen w-full ">
         <div className="flex flex-col w-full">
           <div ref={scrollRef} className="flex-1 overflow-y-auto">
             <form
@@ -130,27 +161,75 @@ export default function Home() {
               }}
               className="flex flex-col w-full max-w-[800px] mx-auto h-full"
             >
-              {messages.length > 0 && (
-                <motion.div
-                  className="flex flex-col py-4"
-                  variants={containerAnimations}
-                  initial="initial"
-                  animate="animate"
-                >
-                  <AnimatePresence mode="popLayout">
+              {messages.length > 0 &&
+                (animateFirstBatch ? (
+                  <motion.div
+                    className="flex flex-col py-4"
+                    variants={containerAnimations}
+                    initial="initial"
+                    animate="animate"
+                  >
+                    <AnimatePresence mode="popLayout">
+                      {messages.map((message, index) => (
+                        <motion.div
+                          key={index}
+                          className={`flex w-full ${
+                            message.sender === "user"
+                              ? "justify-end"
+                              : "justify-start"
+                          }`}
+                          variants={messageAnimations}
+                          initial="initial"
+                          animate="animate"
+                          exit="exit"
+                          transition={{ duration: 0.3 }}
+                        >
+                          <Card
+                            className={`mb-2 w-fit max-w-[100%] p-4 border-none shadow-none ${
+                              message.sender === "model"
+                                ? "bg-transparent text-foreground"
+                                : "bg-primary text-primary-foreground"
+                            }`}
+                          >
+                            <CardContent className="p-3 break-words whitespace-pre-line">
+                              <MarkdownRenderer>
+                                {message.text}
+                              </MarkdownRenderer>
+                            </CardContent>
+                          </Card>
+                        </motion.div>
+                      ))}
+
+                      {submissionLoading && (
+                        <motion.div
+                          className="flex justify-start"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                        >
+                          <Card className="mb-2 w-fit max-w-[60%] p-4 bg-transparent text-foreground border-none shadow-none">
+                            <CardContent className="p-3">
+                              <div className="flex items-center gap-2">
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-foreground"></div>
+                                <span></span>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                ) : (
+                  // Static (non-animated) rendering for all subsequent messages
+                  <div className="flex flex-col py-4">
                     {messages.map((message, index) => (
-                      <motion.div
+                      <div
                         key={index}
                         className={`flex w-full ${
                           message.sender === "user"
                             ? "justify-end"
                             : "justify-start"
                         }`}
-                        variants={messageAnimations}
-                        initial="initial"
-                        animate="animate"
-                        exit="exit"
-                        transition={{ duration: 0.3 }}
                       >
                         <Card
                           className={`mb-2 w-fit max-w-[100%] p-4 border-none shadow-none ${
@@ -163,16 +242,10 @@ export default function Home() {
                             <MarkdownRenderer>{message.text}</MarkdownRenderer>
                           </CardContent>
                         </Card>
-                      </motion.div>
+                      </div>
                     ))}
-
                     {submissionLoading && (
-                      <motion.div
-                        className="flex justify-start"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                      >
+                      <div className="flex justify-start">
                         <Card className="mb-2 w-fit max-w-[60%] p-4 bg-transparent text-foreground border-none shadow-none">
                           <CardContent className="p-3">
                             <div className="flex items-center gap-2">
@@ -181,11 +254,10 @@ export default function Home() {
                             </div>
                           </CardContent>
                         </Card>
-                      </motion.div>
+                      </div>
                     )}
-                  </AnimatePresence>
-                </motion.div>
-              )}
+                  </div>
+                ))}
             </form>
           </div>
 
@@ -283,6 +355,10 @@ export default function Home() {
                       type="submit"
                       disabled={!input.trim() || isLoading}
                       className="w-9 h-9 rounded-full flex items-center justify-center"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleSubmit();
+                      }}
                     >
                       <Send size={24} />
                     </Button>
@@ -292,7 +368,7 @@ export default function Home() {
             </div>
           </div>
         </div>
-      </SidebarProvider>
-    </div>
+      </div>
+    </SidebarProvider>
   );
 }

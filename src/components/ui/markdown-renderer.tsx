@@ -3,6 +3,7 @@ import React, { JSX, useEffect, useState } from "react"
 import { useTheme } from "next-themes"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
+import rehypeRaw from "rehype-raw"
 
 import { cn } from "@/lib/utils"
 import { CopyButton } from "@/components/ui/copy-button"
@@ -14,7 +15,11 @@ interface MarkdownRendererProps {
 export default function MarkdownRenderer({ children }: MarkdownRendererProps) {
   return (
     <div className="space-y-3">
-      <Markdown remarkPlugins={[remarkGfm]} components={COMPONENTS}>
+      <Markdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeRaw]}
+        components={COMPONENTS}
+      >
         {children}
       </Markdown>
     </div>
@@ -43,7 +48,6 @@ const HighlightedPre = React.memo(
           })
           setHtml(newHtml)
         } else {
-          // Fallback for unsupported languages
           const fallbackHtml = await codeToHtml(children, {
             lang: "text",
             theme: shikiTheme,
@@ -55,7 +59,6 @@ const HighlightedPre = React.memo(
     }, [children, language, theme])
 
     if (!html) {
-      // Render unstyled code while shiki is loading
       return (
         <pre {...props}>
           <code>{children}</code>
@@ -123,6 +126,14 @@ function childrenTakeAllStringContents(element: any): string {
   return ""
 }
 
+function withClass(Tag: keyof JSX.IntrinsicElements, classes: string) {
+  const Component = ({ node, ...props }: any) => (
+    <Tag className={classes} {...props} />
+  )
+  Component.displayName = Tag
+  return Component
+}
+
 const COMPONENTS = {
   h1: withClass("h1", "text-2xl font-semibold"),
   h2: withClass("h2", "font-semibold text-xl"),
@@ -130,6 +141,7 @@ const COMPONENTS = {
   h4: withClass("h4", "font-semibold text-base"),
   h5: withClass("h5", "font-medium"),
   strong: withClass("strong", "font-semibold"),
+  em: withClass("em", "italic"),
   a: withClass("a", "text-primary underline underline-offset-2"),
   blockquote: withClass("blockquote", "border-l-2 border-primary pl-4"),
   code: ({ node, className, children, ...props }: any) => {
@@ -172,13 +184,11 @@ const COMPONENTS = {
   tr: withClass("tr", "m-0 border-t p-0 even:bg-muted"),
   p: withClass("p", "whitespace-pre-wrap"),
   hr: withClass("hr", "border-foreground/20"),
-}
 
-function withClass(Tag: keyof JSX.IntrinsicElements, classes: string) {
-  const Component = ({ node, ...props }: any) => (
-    <Tag className={classes} {...props} />
-  )
-  Component.displayName = Tag
-  return Component
+  // New rich tags
+  mark: withClass("mark", "rounded bg-yellow-300/40 px-1 py-0.5 dark:bg-yellow-400/20"),
+  kbd: withClass("kbd", "rounded border bg-muted px-1.5 py-0.5 font-mono text-xs shadow-sm"),
+  details: withClass("details", "my-2 overflow-hidden rounded-md border border-foreground/20 open:shadow-sm"),
+  summary: withClass("summary", "cursor-pointer select-none bg-muted px-3 py-2 font-medium"),
 }
 

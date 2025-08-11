@@ -78,6 +78,7 @@
   --sidebar-ring: oklch(0.709 0.01 56.259);
   --shiki-light-bg: oklch(1 0 0);
   --shiki-light: oklch(0.147 0.004 49.25);
+  --neon-accent: #14f1ff; /* adjust to match your input glow */
 }
 
 .dark {
@@ -171,6 +172,7 @@ pre code {
 
 @keyframes neonBorderRotate {
   0% {
+    border-radius: 1rem;
     border-image: conic-gradient(
       from 0deg,
       rgb(88, 101, 242),
@@ -182,6 +184,8 @@ pre code {
     box-shadow: 0 0 10px rgb(88, 101, 242);
   }
   100% {
+    border-radius: 1rem;
+
     border-image: conic-gradient(
       from 360deg,
       rgb(88, 101, 242),
@@ -195,10 +199,57 @@ pre code {
 }
 
 .neon-border {
-  border: 2px solid;
-  border-radius: 1rem;
+  border: 0px solid var(--neon-accent);;
+  box-shadow:
+    0 0 16px var(--neon-accent),
+    0 0 16px color-mix(in srgb, var(--neon-accent) 60%, transparent),
+    0 0 16px color-mix(in srgb, var(--neon-accent) 40%, transparent);
+  border-radius: 16rem;
   animation: neonBorderRotate 3s linear infinite;
   transition: all 0.3s ease;
+}
+
+/* Spinner styled with same neon color */
+.neon-spinner {
+  --size: 18px;
+  width: var(--size);
+  height: var(--size);
+  position: relative;
+  display: inline-block;
+}
+
+.neon-spinner::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  /* Conic gradient matches neon-border animation colors */
+  background:
+    conic-gradient(
+      from 0deg,
+      rgb(88 101 242),
+      rgb(124 91 242),
+      rgb(170 91 242),
+      rgb(124 91 242),
+      rgb(88 101 242)
+    );
+  /* Hollow center (ring) */
+  -webkit-mask:
+    radial-gradient(farthest-side, transparent 58%, #000 60%);
+  mask:
+    radial-gradient(farthest-side, transparent 58%, #000 60%);
+  animation:
+    spinnerRotate .8s linear infinite,
+    neonBorderRotate 3s linear infinite;
+  box-shadow:
+    0 0 6px rgb(124 91 242),
+    0 0 12px rgb(170 91 242),
+    0 0 20px rgb(88 101 242);
+  filter: drop-shadow(0 0 4px rgb(124 91 242));
+}
+
+@keyframes spinnerRotate {
+  to { transform: rotate(360deg); }
 }
 
 /* Add these utility classes for better border-image support */
@@ -206,4 +257,27 @@ pre code {
   syntax: '<angle>';
   initial-value: 0deg;
   inherits: false;
+}
+
+/* Small, subtle scrollbar for sidebar */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 99px;
+}
+
+.custom-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: hsl(var(--foreground) / 0.4);
 }
