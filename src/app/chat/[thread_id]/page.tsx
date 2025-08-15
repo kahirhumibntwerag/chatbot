@@ -2,22 +2,17 @@
 
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/ui/sidebar-app";
-import { useRef, useState, useEffect, startTransition } from "react";
+import { useRef, useState, useEffect, SetStateAction } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Plus, Database, Check, Upload } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Card, CardContent } from "@/components/ui/card";
-import MarkdownRenderer from "@/components/ui/markdown-renderer";
+import { Send, Plus } from "lucide-react";
+
 import { useParams } from "next/navigation";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -27,12 +22,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Store, StoresResponse } from "@/types/store";
-import { toast } from "sonner";
-import { Database as LucideDatabase } from "lucide-react";
 import FileUploader from "@/components/ui/fileUploader";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useChatHistory } from "@/hooks/useChatHistory";
 import { StoreIndicator } from "@/components/ui/StoreIndicator";
 import { useStoreManagement } from "@/hooks/useStoreManagement";
@@ -40,7 +31,6 @@ import { useAutoResize } from "@/hooks/useAutoResizeTextArea";
 import { useAutoScroll } from "@/hooks/useAutoScroll";
 import { useChatSubmission } from "@/hooks/useChatSubmission";
 import { useRouter } from "next/navigation";
-import { Kamehameha } from "@/components/animations/Kamehameha";
 import {
   Select,
   SelectTrigger,
@@ -51,25 +41,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 // ADD: Stop icon
-import { Square } from "lucide-react";
 import { MessageList } from "@/components/MessageList";
 import { ArrowDown } from "lucide-react";
 import { API_BASE_URL } from "@/lib/apiConfig"; // add
+import { Input } from "@/components/ui/input";
 
 // Create a custom hook for chat history management
 
-const messageAnimations = {
-  initial: { height: 0, opacity: 0, y: 10 },
-  animate: { height: "auto", opacity: 1, y: 0 },
-  exit: { height: 0, opacity: 0, y: -10 },
-  transition: { duration: 0.2, ease: "easeOut" },
-};
 
-const containerAnimations = {
-  initial: { height: 0 },
-  animate: { height: "auto" },
-  transition: { duration: 0.2, ease: "easeOut" },
-};
 
 export default function Home() {
   const router = useRouter();
@@ -221,22 +200,7 @@ export default function Home() {
   // }, [accessToken]);
 
   // Auth check: calls backend; if 401 redirect
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch(`${API_BASE_URL}/users/me`, {
-          credentials: "include",
-        });
-        if (!res.ok) throw new Error("unauth");
-      } catch {
-        if (!cancelled) router.replace("/login");
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [router]);
+
 
   return (
     <SidebarProvider>
@@ -378,7 +342,7 @@ export default function Home() {
                               <Input
                                 placeholder="Store name"
                                 value={newStoreName}
-                                onChange={(e) =>
+                                onChange={(e: { target: { value: SetStateAction<string>; }; }) =>
                                   setNewStoreName(e.target.value)
                                 }
                               />

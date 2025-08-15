@@ -19,5 +19,5 @@ export function middleware(request: NextRequest) {
 
 // Match only protected routes
 export const config = {
-  matcher: ['/chat/:path*'],
+  matcher: ['/chat'],
 }

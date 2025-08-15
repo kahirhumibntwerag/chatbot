@@ -1,7 +1,6 @@
 "use client";
-import React from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -9,12 +8,11 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import Link from "next/dist/client/link";
-import { API_BASE_URL } from "@/lib/apiConfig"; // Ensure this is correctly set in your environment
+import { API_BASE_URL } from "@/lib/apiConfig";
 
 const Login = () => {
   const router = useRouter();
@@ -23,6 +21,7 @@ const Login = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -31,33 +30,46 @@ const Login = () => {
 
     try {
       const formData = new URLSearchParams();
-      formData.append('username', username);
-      formData.append('password', password);
+      formData.append("username", username);
+      formData.append("password", password);
+
+      // Existing jwt (if any) from cookie
+      const existingJwt =
+        document.cookie.match(/(?:^|;\s*)jwt=([^;]+)/)?.[1] || "";
 
       const response = await fetch(`${API_BASE_URL}/token`, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
+          ...(existingJwt
+            ? { Authorization: `Bearer ${decodeURIComponent(existingJwt)}` }
+            : {}),
         },
         body: formData,
-        credentials: 'include', // This allows cookies to be sent and received
+        credentials: "include",
       });
 
       const data = await response.json();
-      
+
       if (!response.ok) {
         setError(data.detail || "Login failed. Please try again.");
         return;
       }
 
-      // The backend will set the cookie automatically
-      // No need to manually set it here since credentials: 'include' is enabled
+      // Accept possible token field names
+      const newToken: string | undefined =
+        data.jwt || data.token || data.access_token;
+
+      if (newToken) {
+        // Persist token as cookie for later Authorization headers
+        document.cookie = `jwt=${newToken}; Path=/; SameSite=Lax`;
+      }
+
       setSuccess("Login successful!");
       router.push("/chat");
-
-    } catch (error) {
+    } catch (err) {
       setError("An unexpected error occurred. Please try again.");
-      console.error(error);
+      console.error(err);
     } finally {
       setIsLoading(false);
     }

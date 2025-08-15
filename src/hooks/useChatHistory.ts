@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { API_BASE_URL } from "@/lib/apiConfig"; // added
 
 interface ChatMessage {
   text: string;
@@ -28,7 +29,7 @@ async function fetchAllChats(): Promise<Chat[]> {
   const tokenMatch = document.cookie.match(/(?:^|;\s*)jwt=([^;]+)/);
   const token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : null;
   if (!token) return [];
-  const res = await fetch("http://localhost:8000/checkpoints/messages", {
+  const res = await fetch(`${API_BASE_URL}/checkpoints/messages`, {
     headers: { Authorization: `Bearer ${token}` },
     credentials: "include",
   });
