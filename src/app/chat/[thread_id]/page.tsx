@@ -200,7 +200,22 @@ export default function Home() {
   // }, [accessToken]);
 
   // Auth check: calls backend; if 401 redirect
-
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/users/me`, {
+          credentials: "include",
+        });
+        if (!res.ok) throw new Error("unauth");
+      } catch {
+        if (!cancelled) router.replace("/login");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   return (
     <SidebarProvider>
