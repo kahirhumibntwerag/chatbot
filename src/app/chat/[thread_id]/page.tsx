@@ -97,7 +97,7 @@ export default function Home() {
   const [animateFirstBatch, setAnimateFirstBatch] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [scrollDown, setScrollDown] = useState(true);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null) as React.RefObject<HTMLDivElement>;
   const textareaRef = useRef<HTMLTextAreaElement>(
     null
   ) as React.RefObject<HTMLTextAreaElement>;
@@ -225,23 +225,8 @@ export default function Home() {
     let cancelled = false;
     (async () => {
       try {
-        // Try to obtain token (only works if not HttpOnly)
-        let token: string | null = null;
-        if (typeof window !== "undefined") {
-          token = localStorage.getItem("jwt") || null;
-          if (!token) {
-            // Fallback: try to read a non-HttpOnly cookie named jwt
-            const m = document.cookie.match(/(?:^|;\s*)jwt=([^;]+)/);
-            if (m) token = decodeURIComponent(m[1]);
-          }
-        }
-
-        const headers: Record<string,string> = {};
-        if (token) headers.Authorization = `Bearer ${token}`;
-
         const res = await fetch(`${API_BASE_URL}/users/me`, {
           credentials: "include",
-          headers,
         });
         if (!res.ok) throw new Error("unauth");
       } catch {

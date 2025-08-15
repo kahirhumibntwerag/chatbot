@@ -7,8 +7,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
-import { toast } from "@/components/ui/sonner";
+import { useEffect, useMemo } from "react";
 import {
   Sidebar,
   SidebarContent,
@@ -25,12 +24,19 @@ import {
 import { ThemeToggle } from "./themeToggle";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-// ------------------------------------------------------------------
+// Env base URL
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(/\/$/, "");
+
+const api = (path: string) =>
+  `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
+
 // Types
+type ChatMessage = { text: string; sender: "user" | "model" };
+
 type Chat = {
   id: string;
   title: string;
-  messages: { text: string; sender: "user" | "model" }[];
+  messages: ChatMessage[];
   timestamp: number;
 };
 
@@ -46,19 +52,28 @@ type ChatGroups = {
   older: Chat[];
 };
 
-// ------------------------------------------------------------------
-// Module-level cache (persists across component unmounts)
-// This prevents refetch on each navigation if the sidebar remounts.
-// let chatCache: Chat[] = [];
-// let chatsFetchedOnce = false;
+interface StoresResponse {
+  stores?: Store[];
+}
 
-// ------------------------------------------------------------------
+interface RawCheckpoint {
+  thread_id: string;
+  messages: ChatMessage[];
+  timestamp?: number;
+}
+
+declare global {
+  interface Window {
+    __chatThreads?: string[];
+  }
+}
+
 const groupChatsByDate = (chats: Chat[]): ChatGroups => {
   const now = Date.now();
   const oneDayMs = 24 * 60 * 60 * 1000;
   const sevenDaysMs = 7 * oneDayMs;
-  return chats.reduce(
-    (groups: ChatGroups, chat) => {
+  return chats.reduce<ChatGroups>(
+    (groups, chat) => {
       const age = now - chat.timestamp;
       if (age < oneDayMs) groups.today.push(chat);
       else if (age < sevenDaysMs) groups.last7Days.push(chat);
@@ -71,7 +86,7 @@ const groupChatsByDate = (chats: Chat[]): ChatGroups => {
 
 function messagesToChat(
   thread_id: string,
-  messages: { text: string; sender: "user" | "model" }[],
+  messages: ChatMessage[],
   timestamp?: number
 ): Chat {
   const firstUserMessage = messages.find((x) => x.sender === "user");
@@ -83,16 +98,39 @@ function messagesToChat(
     id: thread_id,
     title,
     messages,
-    timestamp: timestamp || Date.now(),
+    timestamp: timestamp ?? Date.now(),
   };
 }
 
 async function logout() {
-  await fetch("http://localhost:8000/logout", {
+  await fetch(api("/logout"), {
     method: "POST",
     credentials: "include",
   });
   window.location.href = "/login";
+}
+
+function isChatMessageArray(v: unknown): v is ChatMessage[] {
+  return (
+    Array.isArray(v) &&
+    v.every(
+      (m) =>
+        m &&
+        typeof m === "object" &&
+        typeof (m as ChatMessage).text === "string" &&
+        ((m as ChatMessage).sender === "user" ||
+          (m as ChatMessage).sender === "model")
+    )
+  );
+}
+
+function isRawCheckpoint(v: unknown): v is RawCheckpoint {
+  return (
+    !!v &&
+    typeof v === "object" &&
+    typeof (v as RawCheckpoint).thread_id === "string" &&
+    isChatMessageArray((v as RawCheckpoint).messages)
+  );
 }
 
 // Fetch helpers
@@ -100,35 +138,52 @@ async function fetchStores(): Promise<Store[]> {
   const tokenMatch = document.cookie.match(/(?:^|;\s*)jwt=([^;]+)/);
   const token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : null;
   if (!token) throw new Error("No auth");
-  const res = await fetch("http://localhost:8000/stores", {
+  const res = await fetch(api("/stores"), {
     headers: { Authorization: `Bearer ${token}` },
     credentials: "include",
   });
   if (!res.ok) throw new Error("Failed stores");
-  const data = await res.json();
-  return data.stores ?? [];
+  const data: StoresResponse = await res.json();
+  return Array.isArray(data.stores) ? data.stores : [];
 }
 
 async function fetchChats(): Promise<Chat[]> {
   const tokenMatch = document.cookie.match(/(?:^|;\s*)jwt=([^;]+)/);
   const token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : null;
   if (!token) return [];
-  const res = await fetch("http://localhost:8000/checkpoints/messages", {
+  const res = await fetch(api("/checkpoints/messages"), {
     headers: { Authorization: `Bearer ${token}` },
     credentials: "include",
   });
   if (!res.ok) throw new Error("Failed chats");
-  const data = await res.json();
+  const data: unknown = await res.json();
   if (!Array.isArray(data)) return [];
-  const chats = data
-    .filter(
-      (row: any) => Array.isArray(row?.messages) && row.messages.length > 0
+  const chats: Chat[] = data
+    .filter(isRawCheckpoint)
+    .filter((row) => row.messages.length > 0)
+    .map((row) =>
+      messagesToChat(
+        row.thread_id,
+        row.messages,
+        typeof row.timestamp === "number" ? row.timestamp : undefined
+      )
     )
-    .map((row: any) => messagesToChat(row.thread_id, row.messages));
-  return chats.sort((a, b) => b.timestamp - a.timestamp);
+    .sort((a, b) => b.timestamp - a.timestamp);
+  return chats;
 }
 
-// ------------------------------------------------------------------
+function isChatUpdatedEvent(
+  e: Event
+): e is CustomEvent<{ id: string; messages: ChatMessage[] }> {
+  return (
+    "detail" in e &&
+    !!(e as CustomEvent).detail &&
+    typeof (e as CustomEvent).detail.id === "string" &&
+    Array.isArray((e as CustomEvent).detail.messages)
+  );
+}
+
+// Component
 export function AppSidebar() {
   const router = useRouter();
   const pathname = usePathname();
@@ -139,33 +194,28 @@ export function AppSidebar() {
     return match ? match[1] : null;
   }, [pathname]);
 
-  // React Query: chats
   const {
     data: chats = [],
     isLoading: chatsLoading,
     isError: chatsError,
-  } = useQuery({
+  } = useQuery<Chat[]>({
     queryKey: ["chats"],
     queryFn: fetchChats,
-    // initialData can keep previously injected values
   });
 
-  // React Query: stores
   const {
     data: stores = [],
     isLoading: storesLoading,
     isError: storesError,
-  } = useQuery({
+  } = useQuery<Store[]>({
     queryKey: ["stores"],
     queryFn: fetchStores,
   });
 
-  // Utility
   const sortChats = (list: Chat[]) =>
     [...list].sort((a, b) => b.timestamp - a.timestamp);
 
-  // Update (merge) chat messages in cache
-  const updateChatMessages = (id: string, messages: Chat["messages"]) => {
+  const updateChatMessages = (id: string, messages: ChatMessage[]) => {
     queryClient.setQueryData<Chat[]>(["chats"], (old = []) => {
       const idx = old.findIndex((c) => c.id === id);
       if (idx === -1) {
@@ -198,7 +248,6 @@ export function AppSidebar() {
     });
   };
 
-  // New chat
   const startNewChat = () => {
     const id = crypto.randomUUID?.() || `chat_${Date.now()}`;
     queryClient.setQueryData<Chat[]>(["chats"], (old = []) => {
@@ -214,24 +263,23 @@ export function AppSidebar() {
     router.push(`/chat/${id}`);
   };
 
-  // Listen for external updates
   useEffect(() => {
     const handler = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      if (!detail?.id || !Array.isArray(detail?.messages)) return;
-      updateChatMessages(detail.id, detail.messages);
+      if (!isChatUpdatedEvent(e)) return;
+      const { id, messages } = e.detail;
+      updateChatMessages(id, messages);
     };
-    window.addEventListener("chatUpdated", handler as EventListener);
-    return () =>
-      window.removeEventListener("chatUpdated", handler as EventListener);
-  }, []);
+    window.addEventListener("chatUpdated", handler);
+    return () => window.removeEventListener("chatUpdated", handler);
+  }, [queryClient]);
 
-  // Expose thread ids globally
   useEffect(() => {
     try {
-      (window as any).__chatThreads = chats.map((c) => c.id);
+      window.__chatThreads = chats.map((c) => c.id);
       window.dispatchEvent(new Event("chatThreadsUpdated"));
-    } catch {}
+    } catch {
+      /* ignore */
+    }
   }, [chats]);
 
   const grouped = useMemo(() => groupChatsByDate(chats), [chats]);
@@ -248,7 +296,6 @@ export function AppSidebar() {
     [grouped.older]
   );
 
-  // Basic load / error UI (optional terse indicators)
   const storesState = storesLoading
     ? "Loading..."
     : storesError
@@ -257,9 +304,8 @@ export function AppSidebar() {
   const chatsState = chatsLoading ? "Loading..." : chatsError ? "Failed" : null;
 
   return (
-    <Sidebar variant='sidebar' collapsible="offcanvas" >
+    <Sidebar variant="sidebar" collapsible="offcanvas">
       <SidebarHeader>
-        {" "}
         <ThemeToggle />
         <Button
           variant="default"
@@ -271,7 +317,7 @@ export function AppSidebar() {
         </Button>
       </SidebarHeader>
 
-      <SidebarContent className="">
+      <SidebarContent>
         <SidebarGroup>
           <SidebarGroup className="mb-4">
             <Collapsible>
@@ -301,9 +347,11 @@ export function AppSidebar() {
                               "selectedStore",
                               store.store_name
                             );
-                          } catch {}
+                          } catch {
+                            /* ignore */
+                          }
                           window.dispatchEvent(
-                            new CustomEvent("storeSelected", {
+                            new CustomEvent<string>("storeSelected", {
                               detail: store.store_name,
                             })
                           );

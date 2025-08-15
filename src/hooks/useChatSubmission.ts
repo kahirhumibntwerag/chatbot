@@ -1,17 +1,20 @@
 import { useRef, useState, useCallback } from "react";
-import { Message } from "@/types/message";
+// Removed unused import Message
 import { toast } from "sonner";
-import { API_BASE_URL } from "@/lib/apiConfig"; // added
+import { API_BASE_URL } from "@/lib/apiConfig";
+
+// Define local message type (align with actual usage)
+export type ChatMessage = { sender: "user" | "model"; text: string };
 
 export function useChatSubmission(opts: {
   thread_id: string;
   storeName?: string | null;
-  onMessageUpdate: (msgs: Array<{ sender: "user" | "model"; text: string }>) => void;
+  // Treat like a React setState dispatcher (matches how it's used)
+  onMessageUpdate: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
   setScrollDown?: (b: boolean) => void;
 }) {
   const { thread_id, storeName, onMessageUpdate, setScrollDown } = opts;
   const [isLoading, setIsLoading] = useState(false);
-  // ADD: controller ref to allow cancel
   const abortRef = useRef<AbortController | null>(null);
 
   const cancel = useCallback(() => {
@@ -24,36 +27,32 @@ export function useChatSubmission(opts: {
 
   const submitMessage = useCallback(
     async (input: string) => {
-      setScrollDown?.(prev => !prev);
+      setScrollDown?.(true);
       if (!input.trim() || isLoading) return;
 
       const userText = input.trim();
       onMessageUpdate(prev => [...prev, { text: userText, sender: "user" }]);
-      // Ensure any previous run is stopped
-      if (abortRef.current) abortRef.current.abort();
 
+      if (abortRef.current) abortRef.current.abort();
       const controller = new AbortController();
       abortRef.current = controller;
       setIsLoading(true);
 
       try {
-        // Example fetch; ensure you pass the signal to whatever you use (fetch/axios)
-        const res = await fetch("/api/chat", {
+        // (Optional) If /api/chat is a Next.js route proxying backend, leave as-is.
+        await fetch("/api/chat", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            thread_id: opts.thread_id,
-            store_name: opts.storeName || undefined,
+            thread_id,
+            store_name: storeName || undefined,
             message: userText,
           }),
-          signal: controller.signal, // IMPORTANT
+          signal: controller.signal,
         });
 
-        // Get the JWT token from cookies
-        const cookies = document.cookie.split(";");
-        const accessToken = cookies
-          .find((cookie) => cookie.trim().startsWith("jwt="))
-          ?.split("=")[1];
+        const cookies = document.cookie.split(";").map(c => c.trim());
+        const accessToken = cookies.find(c => c.startsWith("jwt="))?.split("=")[1];
 
         if (!accessToken) {
           console.error("No JWT token found in cookies");
@@ -62,19 +61,18 @@ export function useChatSubmission(opts: {
           return;
         }
 
-        let eventSource: EventSource;
+        let eventSource: EventSource | null = null;
         try {
           eventSource = new EventSource(
-            `${API_BASE_URL}/chat/stream?thread_id=${thread_id}&message=${encodeURIComponent(
-              userText
-            )}&token=${accessToken}${
+            `${API_BASE_URL}/chat/stream?thread_id=${encodeURIComponent(
+              thread_id
+            )}&message=${encodeURIComponent(userText)}&token=${encodeURIComponent(accessToken)}${
               storeName ? `&store_name=${encodeURIComponent(storeName)}` : ""
             }`
           );
 
-          let messageBuffer = "";
+            let messageBuffer = "";
 
-          // Model started → create/prepare placeholder
           eventSource.addEventListener("model_start", () => {
             setIsLoading(true);
             onMessageUpdate(prev => {
@@ -84,76 +82,68 @@ export function useChatSubmission(opts: {
             });
           });
 
-          // Stream tokens → update last model message
           eventSource.addEventListener("model_token", (ev: MessageEvent) => {
             try {
-              const { token } = JSON.parse(ev.data || "{}");
-              if (!token) return;
-              messageBuffer += token;
+              const parsed = JSON.parse(ev.data || "{}") as { token?: string };
+              if (!parsed.token) return;
+              messageBuffer += parsed.token;
               onMessageUpdate(prev => {
-                const newMessages = [...prev];
-                const last = newMessages[newMessages.length - 1];
+                const copy = [...prev];
+                const last = copy[copy.length - 1];
                 if (last?.sender === "model") {
-                  newMessages[newMessages.length - 1] = { ...last, text: messageBuffer };
+                  copy[copy.length - 1] = { ...last, text: messageBuffer };
                 } else {
-                  newMessages.push({ text: messageBuffer, sender: "model" });
+                  copy.push({ text: messageBuffer, sender: "model" });
                 }
-                return newMessages;
+                return copy;
               });
-            } catch { }
+            } catch {
+              /* swallow malformed token events */
+            }
           });
 
-          // Tool lifecycle → optional toast or future UI hooks
           eventSource.addEventListener("tool_start", (ev: MessageEvent) => {
             try {
-              const { name } = JSON.parse(ev.data || "{}");
-              console.log("Tool started:", name);
-              toast.message(`Using tool: ${name ?? "unknown"}`);
-            } catch { }
-          });
-          eventSource.addEventListener("tool_end", (ev: MessageEvent) => {
-            try {
-              const { name } = JSON.parse(ev.data || "{}");
-              toast.success(`Finished tool: ${name ?? "unknown"}`);
-            } catch { }
+              const parsed = JSON.parse(ev.data || "{}") as { name?: string };
+              toast.message(`Using tool: ${parsed.name ?? "unknown"}`);
+            } catch {}
           });
 
-          // Complete
+          eventSource.addEventListener("tool_end", (ev: MessageEvent) => {
+            try {
+              const parsed = JSON.parse(ev.data || "{}") as { name?: string };
+              toast.success(`Finished tool: ${parsed.name ?? "unknown"}`);
+            } catch {}
+          });
+
           eventSource.addEventListener("done", () => {
-            eventSource.close();
+            eventSource?.close();
             setIsLoading(false);
           });
 
-          // Fallback error
           eventSource.onerror = () => {
             console.error("SSE connection error");
-            eventSource.close();
+            eventSource?.close();
             setIsLoading(false);
             toast.error("Connection lost");
           };
-        } catch (error) {
-          console.error("Failed to create EventSource:", error);
+        } catch (e) {
+          console.error("Failed to create EventSource:", e);
           toast.error("Failed to connect to chat service");
           setIsLoading(false);
         }
-      } catch (err: any) {
-        if (err?.name !== "AbortError") {
-          // ...existing error handling...
+      } catch (err: unknown) {
+        if (!(err instanceof DOMException && err.name === "AbortError")) {
           console.error(err);
+          toast.error("Request failed");
         }
       } finally {
         setIsLoading(false);
-        // Clear controller if this run is done (and not replaced)
         if (abortRef.current === controller) abortRef.current = null;
       }
     },
-    [opts.thread_id, opts.storeName, isLoading, onMessageUpdate, setScrollDown]
+    [thread_id, storeName, isLoading, onMessageUpdate, setScrollDown]
   );
 
-  return {
-    isLoading,
-    submitMessage,
-    // ADD: expose cancel to UI
-    cancel,
-  };
+  return { isLoading, submitMessage, cancel };
 }
