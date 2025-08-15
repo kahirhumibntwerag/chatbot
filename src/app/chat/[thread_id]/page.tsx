@@ -48,8 +48,6 @@ import { Input } from "@/components/ui/input";
 
 // Create a custom hook for chat history management
 
-
-
 export default function Home() {
   const router = useRouter();
   const { thread_id } = useParams();
@@ -202,16 +200,32 @@ export default function Home() {
   // Auth check: calls backend; if 401 redirect
   useEffect(() => {
     let cancelled = false;
+
+    const getToken = () => {
+      if (typeof document === "undefined") return null;
+      // Adjust cookie key if different (e.g. "access_token")
+      const raw = document.cookie
+        .split(";")
+        .find((c) => c.trim().startsWith("jwt="));
+      return raw ? raw.split("=")[1] : null;
+    };
+
     (async () => {
       try {
+        const token = getToken();
         const res = await fetch(`${API_BASE_URL}/users/me`, {
-          credentials: "include",
+          credentials: "include", // keep if backend also supports cookie session
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            Accept: "application/json",
+          },
         });
         if (!res.ok) throw new Error("unauth");
       } catch {
         if (!cancelled) router.replace("/login");
       }
     })();
+
     return () => {
       cancelled = true;
     };
