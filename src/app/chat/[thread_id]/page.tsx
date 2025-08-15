@@ -282,7 +282,7 @@ export default function Home() {
                 />
                 <div
                   className={`flex items-center ${
-                    storeName ? "justify-between" : "justify-end"
+                    storeName ? "justify-between" : "hidden"
                   } gap-2 w-full flex-1/2`}
                 >
                   <div className="min-w-[180px]">
