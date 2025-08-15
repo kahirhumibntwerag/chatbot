@@ -281,3 +281,83 @@ pre code {
 .custom-scrollbar:hover::-webkit-scrollbar-thumb {
   background: hsl(var(--foreground) / 0.4);
 }
+
+/* Neon background utility */
+.neon-bg {
+  --c1: 255 0 128;
+  --c2: 0 200 255;
+  --c3: 140 0 255;
+  position: relative;
+  min-height: 100vh;
+  background: #05060a;
+  overflow: hidden;
+}
+
+.neon-bg::before,
+.neon-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.neon-bg::before {
+  background:
+    radial-gradient(circle at 25% 30%, rgba(var(--c1)/0.28), transparent 60%),
+    radial-gradient(circle at 75% 70%, rgba(var(--c2)/0.25), transparent 55%),
+    radial-gradient(circle at 50% 100%, rgba(var(--c3)/0.20), transparent 70%);
+  filter: blur(40px);
+  animation: neonDrift 18s linear infinite;
+}
+
+.neon-bg::after {
+  background:
+    repeating-linear-gradient(135deg,
+      rgba(255 255 255 / 0.05) 0 2px,
+      transparent 2px 7px);
+  mix-blend-mode: overlay;
+  opacity: .35;
+  animation: gridMove 22s linear infinite;
+}
+
+@keyframes neonDrift {
+  0% { transform: translate3d(0,0,0) scale(1); }
+  50% { transform: translate3d(2%,3%,0) scale(1.05); }
+  100% { transform: translate3d(0,0,0) scale(1); }
+}
+
+@keyframes gridMove {
+  from { transform: translate3d(0,0,0); }
+  to { transform: translate3d(50%,50%,0); }
+}
+
+/* Optional: elevate card with neon edge */
+.neon-card {
+  position: relative;
+}
+
+.neon-card::before {
+  content:"";
+  position:absolute;
+  inset:-2px;
+  border-radius: inherit;
+  background:
+    linear-gradient(120deg,
+      rgba(var(--neon-c1)/0.9),
+      rgba(var(--neon-c2)/0.9),
+      rgba(var(--neon-c3)/0.9));
+  filter: blur(12px);
+  opacity:.55;
+  z-index:-1;
+  animation: hueRotate 12s linear infinite;
+}
+
+@keyframes hueRotate {
+  0% { filter: hue-rotate(0deg) blur(12px); }
+  100% { filter: hue-rotate(360deg) blur(12px); }
+}
+
+/* background only */
+.bg-neon {
+  background: radial-gradient(circle at 30% 30%, #1a1f3d 0%, #05060d 70%);
+}

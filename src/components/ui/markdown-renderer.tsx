@@ -186,9 +186,6 @@ const COMPONENTS = {
   hr: withClass("hr", "border-foreground/20"),
 
   // New rich tags
-  mark: withClass("mark", "rounded bg-yellow-300/40 px-1 py-0.5 dark:bg-yellow-400/20"),
-  kbd: withClass("kbd", "rounded border bg-muted px-1.5 py-0.5 font-mono text-xs shadow-sm"),
-  details: withClass("details", "my-2 overflow-hidden rounded-md border border-foreground/20 open:shadow-sm"),
-  summary: withClass("summary", "cursor-pointer select-none bg-muted px-3 py-2 font-medium"),
+
 }
 

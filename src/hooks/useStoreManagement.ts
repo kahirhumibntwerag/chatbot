@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Store, StoresResponse } from "@/types/store";
 import { toast } from "sonner";
+import { API_BASE_URL } from "@/lib/apiConfig"; // added
 
 interface UseStoreManagementReturn {
   stores: Store[];
@@ -40,11 +41,10 @@ export function useStoreManagement(): UseStoreManagementReturn {
         throw new Error("No authentication token found");
       }
 
-      const response = await fetch("http://localhost:8000/stores", {
+      const response = await fetch(`${API_BASE_URL}/stores`, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
-        credentials: "include",
       });
 
       if (!response.ok) {
@@ -83,7 +83,7 @@ export function useStoreManagement(): UseStoreManagementReturn {
         throw new Error("No authentication token found");
       }
 
-      const response = await fetch("http://localhost:8000/create_store", {
+      const response = await fetch(`${API_BASE_URL}/create_store`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

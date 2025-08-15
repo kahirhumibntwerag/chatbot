@@ -14,6 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import Link from "next/dist/client/link";
+import { API_BASE_URL } from "@/lib/apiConfig"; // Ensure this is correctly set in your environment
 
 const Login = () => {
   const router = useRouter();
@@ -33,7 +34,7 @@ const Login = () => {
       formData.append('username', username);
       formData.append('password', password);
 
-      const response = await fetch("http://localhost:8000/token", {
+      const response = await fetch(`${API_BASE_URL}/token`, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
@@ -51,9 +52,9 @@ const Login = () => {
 
       // The backend will set the cookie automatically
       // No need to manually set it here since credentials: 'include' is enabled
-
       setSuccess("Login successful!");
       router.push("/chat");
+
     } catch (error) {
       setError("An unexpected error occurred. Please try again.");
       console.error(error);
@@ -63,7 +64,7 @@ const Login = () => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-neon">
       <Card className="w-full max-w-md p-6">
         <CardHeader>
           <CardTitle>Login</CardTitle>

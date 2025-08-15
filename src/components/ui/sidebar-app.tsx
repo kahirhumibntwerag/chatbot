@@ -257,7 +257,7 @@ export function AppSidebar() {
   const chatsState = chatsLoading ? "Loading..." : chatsError ? "Failed" : null;
 
   return (
-    <Sidebar variant="floating" collapsible="offcanvas">
+    <Sidebar variant='sidebar' collapsible="offcanvas" >
       <SidebarHeader>
         {" "}
         <ThemeToggle />
@@ -271,7 +271,7 @@ export function AppSidebar() {
         </Button>
       </SidebarHeader>
 
-      <SidebarContent>
+      <SidebarContent className="">
         <SidebarGroup>
           <SidebarGroup className="mb-4">
             <Collapsible>

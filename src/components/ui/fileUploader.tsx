@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { toast } from '@/components/ui/sonner';
 import { Upload } from 'lucide-react';
 import axios, { AxiosProgressEvent } from 'axios';
+import { API_BASE_URL } from '@/lib/apiConfig'; // added
 
 interface FileUploaderProps {
   storeName: string | null;
@@ -45,7 +46,7 @@ const FileUploader = ({ storeName }: FileUploaderProps) => {
 
     try {
       const response = await axios.post(
-        "http://localhost:8000/add_to_store",
+        `${API_BASE_URL}/add_to_store`, // changed
         formData,
         {
           headers: {

@@ -1,3 +1,4 @@
+'use client'
 import { Store } from "@/types/store";
 import { Database as LucideDatabase, Check } from "lucide-react";
 import {

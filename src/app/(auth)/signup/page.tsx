@@ -14,6 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import Link from "next/dist/client/link";
+import { API_BASE_URL } from "@/lib/apiConfig"; // added
 
 
 const Signup = () => {
@@ -38,12 +39,13 @@ const Signup = () => {
     }
 
     try {
-      const response = await fetch("http://localhost:8000/signup", {
+      const response = await fetch(`${API_BASE_URL}/signup`, { // changed
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ email, username, password }),
+        credentials: "include", // optional if backend sets cookies
       });
 
       const data = await response.json();
