@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { API_BASE_URL } from "@/lib/apiConfig"; // added
+import { API_BASE_URL } from "@/lib/apiConfig";
 
 interface ChatMessage {
   text: string;
@@ -14,7 +13,6 @@ interface Chat {
   timestamp: number;
 }
 
-// Derive a title from messages
 function deriveTitle(messages: ChatMessage[], existingTitle?: string) {
   if (existingTitle && existingTitle !== "New Chat") return existingTitle;
   const firstUser = messages.find((m) => m.sender === "user");
@@ -24,7 +22,6 @@ function deriveTitle(messages: ChatMessage[], existingTitle?: string) {
     : firstUser.text;
 }
 
-// Fallback fetch (only if needed)
 async function fetchAllChats(): Promise<Chat[]> {
   const tokenMatch = document.cookie.match(/(?:^|;\s*)jwt=([^;]+)/);
   const token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : null;
@@ -51,117 +48,94 @@ async function fetchAllChats(): Promise<Chat[]> {
     });
 }
 
+// Simple in‑memory cache (module singleton)
+const chatCache: Map<string, Chat> = typeof window !== "undefined"
+  ? (window as any).__chatCache || ((window as any).__chatCache = new Map())
+  : new Map();
+
 export const useChatHistory = (thread_id: string) => {
-  const queryClient = useQueryClient();
   const [messages, setLocalMessages] = useState<ChatMessage[]>([]);
   const fetchedRef = useRef(false);
 
-  // Sync local state from React Query cache
+  // Ensure record exists immediately
   useEffect(() => {
-    const syncFromCache = () => {
-      const chats = queryClient.getQueryData<Chat[]>(["chats"]) || [];
-      const found = chats.find((c) => c.id === thread_id);
-      if (found) {
-        if (found.messages !== messages) {
-          setLocalMessages(found.messages);
-        }
-      } else {
-        // If switching to a thread that isn't in cache yet, clear immediately
-        if (messages.length > 0) {
-          setLocalMessages([]);
-        }
-      }
-    };
-    syncFromCache();
-
-    // Subscribe to query cache changes for ["chats"]
-    const unsub = queryClient.getQueryCache().subscribe((event) => {
-      if (event?.query?.queryKey?.[0] === "chats") {
-        syncFromCache();
-      }
-    });
-    return () => unsub();
-  }, [thread_id, queryClient, messages]);
-
-  // Immediately reset messages when thread changes to avoid showing previous thread content
-  useEffect(() => {
-    setLocalMessages([]);
-  }, [thread_id]);
-
-  // Ensure an empty chat record exists immediately for the new thread id (optimistic seed)
-  useEffect(() => {
-    queryClient.setQueryData<Chat[]>(["chats"], (old = []) => {
-      if (old.some((c) => c.id === thread_id)) return old;
-      return [
-        ...old,
-        {
-          id: thread_id,
-          title: "New Chat",
-          messages: [],
-          timestamp: Date.now(),
-        },
-      ];
-    });
-  }, [thread_id, queryClient]);
-
-  // If chat not in cache, fetch all chats once (fallback)
-  useEffect(() => {
-    const chats = queryClient.getQueryData<Chat[]>(["chats"]) || [];
-    const exists = chats.some((c) => c.id === thread_id);
-    if (!exists && !fetchedRef.current) {
-      fetchedRef.current = true;
-      fetchAllChats().then((all) => {
-        if (all.length) {
-          queryClient.setQueryData<Chat[]>(["chats"], (old = []) => {
-            // Merge, avoiding duplicates
-            const mergedMap = new Map<string, Chat>();
-            [...old, ...all].forEach((c) => mergedMap.set(c.id, c));
-            return Array.from(mergedMap.values());
-          });
-        }
+    if (!chatCache.has(thread_id)) {
+      chatCache.set(thread_id, {
+        id: thread_id,
+        title: "New Chat",
+        messages: [],
+        timestamp: Date.now(),
       });
     }
-  }, [thread_id, queryClient]);
+    setLocalMessages(chatCache.get(thread_id)!.messages);
+  }, [thread_id]);
 
-  // Setter that updates both local state and React Query cache
+  // Fallback fetch once if cache empty for this thread
+  useEffect(() => {
+    const current = chatCache.get(thread_id);
+    if (current && current.messages.length === 0 && !fetchedRef.current) {
+      fetchedRef.current = true;
+      fetchAllChats().then((all) => {
+        if (!all.length) return;
+        let needsSet = false;
+        all.forEach((c) => {
+          const existing = chatCache.get(c.id);
+            if (!existing || existing.messages.length < c.messages.length) {
+              chatCache.set(c.id, c);
+              if (c.id === thread_id) needsSet = true;
+            }
+        });
+        if (needsSet) setLocalMessages(chatCache.get(thread_id)!.messages);
+      });
+    }
+  }, [thread_id]);
+
+  // Listen for external updates
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const ce = e as CustomEvent<{ id: string; messages: ChatMessage[] }>;
+      if (ce.detail?.id !== thread_id) return;
+      const cached = chatCache.get(thread_id);
+      if (!cached) return;
+      // Only update if reference differs
+      if (cached.messages !== messages) {
+        setLocalMessages(cached.messages);
+      }
+    };
+    window.addEventListener("chatUpdated", handler as EventListener);
+    return () => window.removeEventListener("chatUpdated", handler as EventListener);
+  }, [thread_id, messages]);
+
+  // Setter
   const setMessages = (
     updater: React.SetStateAction<ChatMessage[]>
   ) => {
     setLocalMessages((prev) => {
       const next =
-        typeof updater === "function" ? (updater as (p: ChatMessage[]) => ChatMessage[])(prev) : updater;
+        typeof updater === "function"
+          ? (updater as (p: ChatMessage[]) => ChatMessage[])(prev)
+          : updater;
 
-      queryClient.setQueryData<Chat[]>(["chats"], (old = []) => {
-        const idx = old.findIndex((c) => c.id === thread_id);
-        if (idx === -1) {
-          return [
-            ...old,
-            {
-              id: thread_id,
-              title: deriveTitle(next) || "New Chat",
-              messages: next,
-              timestamp: Date.now(),
-            },
-          ];
-        }
-        const existing = old[idx];
-        const updated: Chat = {
-          ...existing,
-            messages: next,
-            title: deriveTitle(next, existing.title),
-            // bump timestamp if a new user message appears
-            timestamp:
-              next.length > existing.messages.length &&
-              next.slice(existing.messages.length).some((m) => m.sender === "user")
-                ? Date.now()
-                : existing.timestamp,
-          };
-        const copy = [...old];
-        copy[idx] = updated;
-        return copy;
-      });
+      const existing = chatCache.get(thread_id) || {
+        id: thread_id,
+        title: "New Chat",
+        messages: [],
+        timestamp: Date.now(),
+      };
 
-      // Backwards compatibility: dispatch event used elsewhere
+      const bumped =
+        next.length > existing.messages.length &&
+        next.slice(existing.messages.length).some((m) => m.sender === "user");
+
+      const updated: Chat = {
+        ...existing,
+        messages: next,
+        title: deriveTitle(next, existing.title),
+        timestamp: bumped ? Date.now() : existing.timestamp,
+      };
+
+      chatCache.set(thread_id, updated);
+
       try {
         window.dispatchEvent(
           new CustomEvent("chatUpdated", {
@@ -173,5 +147,5 @@ export const useChatHistory = (thread_id: string) => {
     });
   };
 
-  return [messages, setMessages] as const;
-};
+    return [messages, setMessages];
+  }

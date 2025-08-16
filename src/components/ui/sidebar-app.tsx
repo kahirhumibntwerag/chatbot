@@ -7,7 +7,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Sidebar,
   SidebarContent,
@@ -22,10 +22,13 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { ThemeToggle } from "./themeToggle";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 
 // Env base URL
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(/\/$/, "");
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(
+  /\/$/,
+  ""
+);
 
 const api = (path: string) =>
   `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
@@ -187,36 +190,65 @@ function isChatUpdatedEvent(
 export function AppSidebar() {
   const router = useRouter();
   const pathname = usePathname();
-  const queryClient = useQueryClient();
+
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [chatsLoading, setChatsLoading] = useState(true);
+  const [chatsError, setChatsError] = useState(false);
+
+  const [stores, setStores] = useState<Store[]>([]);
+  const [storesLoading, setStoresLoading] = useState(true);
+  const [storesError, setStoresError] = useState(false);
+
+  // Initial fetch for chats
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setChatsLoading(true);
+      setChatsError(false);
+      try {
+        const data = await fetchChats();
+        if (!cancelled) setChats(data);
+      } catch {
+        if (!cancelled) setChatsError(true);
+      } finally {
+        if (!cancelled) setChatsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Initial fetch for stores
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setStoresLoading(true);
+      setStoresError(false);
+      try {
+        const data = await fetchStores();
+        if (!cancelled) setStores(data);
+      } catch {
+        if (!cancelled) setStoresError(true);
+      } finally {
+        if (!cancelled) setStoresLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const activeChatId = useMemo(() => {
     const match = pathname?.match(/\/chat\/([^\/?#]+)/);
     return match ? match[1] : null;
   }, [pathname]);
 
-  const {
-    data: chats = [],
-    isLoading: chatsLoading,
-    isError: chatsError,
-  } = useQuery<Chat[]>({
-    queryKey: ["chats"],
-    queryFn: fetchChats,
-  });
-
-  const {
-    data: stores = [],
-    isLoading: storesLoading,
-    isError: storesError,
-  } = useQuery<Store[]>({
-    queryKey: ["stores"],
-    queryFn: fetchStores,
-  });
-
   const sortChats = (list: Chat[]) =>
     [...list].sort((a, b) => b.timestamp - a.timestamp);
 
   const updateChatMessages = (id: string, messages: ChatMessage[]) => {
-    queryClient.setQueryData<Chat[]>(["chats"], (old = []) => {
+    setChats((old) => {
       const idx = old.findIndex((c) => c.id === id);
       if (idx === -1) {
         const created = messagesToChat(id, messages);
@@ -250,7 +282,7 @@ export function AppSidebar() {
 
   const startNewChat = () => {
     const id = crypto.randomUUID?.() || `chat_${Date.now()}`;
-    queryClient.setQueryData<Chat[]>(["chats"], (old = []) => {
+    setChats((old) => {
       if (old.some((c) => c.id === id)) return old;
       const newChat: Chat = {
         id,
@@ -258,7 +290,7 @@ export function AppSidebar() {
         messages: [],
         timestamp: Date.now(),
       };
-      return sortChats([newChat, ...old]);
+      return [newChat, ...old];
     });
     router.push(`/chat/${id}`);
   };
@@ -271,7 +303,7 @@ export function AppSidebar() {
     };
     window.addEventListener("chatUpdated", handler);
     return () => window.removeEventListener("chatUpdated", handler);
-  }, [queryClient]);
+  }, []);
 
   useEffect(() => {
     try {
@@ -381,24 +413,24 @@ export function AppSidebar() {
                     </div>
                     <div className="space-y-1">
                       {todayReversed.map((chat) => (
-                        <Button
-                          key={chat.id}
-                          variant="ghost"
-                          aria-current={
-                            activeChatId === chat.id ? "page" : undefined
-                          }
-                          className={`w-full justify-start px-2 text-sm ${
-                            activeChatId === chat.id
-                              ? "bg-accent text-accent-foreground"
-                              : ""
-                          }`}
-                          onClick={() => {
-                            router.push(`/chat/${chat.id}`);
-                          }}
-                        >
-                          <MessageCircle className="mr-2 h-4 w-4" />
-                          <span className="truncate w-full">{chat.title}</span>
-                        </Button>
+                        <Link key={chat.id} href={`/chat/${chat.id}`} prefetch>
+                          <Button
+                            variant="ghost"
+                            aria-current={
+                              activeChatId === chat.id ? "page" : undefined
+                            }
+                            className={`w-full justify-start px-2 text-sm ${
+                              activeChatId === chat.id
+                                ? "bg-accent text-accent-foreground"
+                                : ""
+                            }`}
+                          >
+                            <MessageCircle className="mr-2 h-4 w-4" />
+                            <span className="truncate w-full">
+                              {chat.title}
+                            </span>
+                          </Button>
+                        </Link>
                       ))}
                     </div>
                   </div>

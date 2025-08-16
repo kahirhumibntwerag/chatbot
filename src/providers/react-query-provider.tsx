@@ -9,7 +9,7 @@ export function ReactQueryProvider({ children }: { children: ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 5 * 60 * 1000, // Data remains fresh for 5 minutes
+            staleTime: 0, // Data remains fresh for 5 minutes
             gcTime: 30 * 60 * 1000,   // Keep unused data for 30 minutes
             refetchOnWindowFocus: false, // Don't refetch on window focus
             refetchOnMount: true,     // Always refetch when component mounts

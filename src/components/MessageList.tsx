@@ -24,7 +24,7 @@ const MessageListComponent: React.FC<MessageListProps> = ({
 
   return (
     <div
-      className={`flex flex-col py-4 ${
+      className={`flex flex-col py-4 transition-opacity duration-300 ease-in-out ${
         isThreadVisible ? "opacity-100" : "opacity-0"
       }`}
     >

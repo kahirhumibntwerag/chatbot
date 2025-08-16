@@ -7,7 +7,7 @@ export default function Home() {
   const router = useRouter();
 
   return (
-    <main className="bg-neon min-h-screen flex flex-col items-center justify-center px-6 relative overflow-hidden">
+    <main className="bg-neon min-h-screen flex flex-col items-center justify-center px-6 relative overflow-hidden w-full">
       {/* Subtle overlay */}
       <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_70%_20%,rgba(255,255,255,0.05),transparent_60%)]" />
 

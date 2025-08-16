@@ -232,10 +232,7 @@ export default function Home() {
   }, [router]);
 
   return (
-    <SidebarProvider>
-      <AppSidebar />
 
-      <SidebarTrigger />
       <div className="flex h-screen w-full ">
         <div className="flex flex-col w-full">
           <div ref={scrollRef} className="flex-1 overflow-y-auto relative">
@@ -445,6 +442,5 @@ export default function Home() {
           </div>
         </div>
       </div>
-    </SidebarProvider>
   );
 }
