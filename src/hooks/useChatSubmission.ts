@@ -9,13 +9,14 @@ export type ChatMessage = { sender: "user" | "model"; text: string };
 export function useChatSubmission(opts: {
   thread_id: string;
   storeName?: string | null;
-  // Treat like a React setState dispatcher (matches how it's used)
+  model?: string | null;
   onMessageUpdate: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
   setScrollDown?: (b: boolean) => void;
 }) {
-  const { thread_id, storeName, onMessageUpdate, setScrollDown } = opts;
+  const { thread_id, storeName, model, onMessageUpdate, setScrollDown } = opts;
   const [isLoading, setIsLoading] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const submittingRef = useRef(false); // ADD
 
   const cancel = useCallback(() => {
     if (abortRef.current) {
@@ -28,10 +29,19 @@ export function useChatSubmission(opts: {
   const submitMessage = useCallback(
     async (input: string) => {
       setScrollDown?.(true);
-      if (!input.trim() || isLoading) return;
-
       const userText = input.trim();
-      onMessageUpdate(prev => [...prev, { text: userText, sender: "user" }]);
+      if (!userText) return;
+
+      // Prevent rapid double fire
+      if (submittingRef.current || isLoading) return;
+      submittingRef.current = true;
+
+      // Optimistic append with dedupe
+      onMessageUpdate(prev => {
+        const last = prev[prev.length - 1];
+        if (last && last.sender === "user" && last.text === userText) return prev;
+        return [...prev, { text: userText, sender: "user" }];
+      });
 
       if (abortRef.current) abortRef.current.abort();
       const controller = new AbortController();
@@ -47,6 +57,7 @@ export function useChatSubmission(opts: {
             thread_id,
             store_name: storeName || undefined,
             message: userText,
+            model: model || undefined,
           }),
           signal: controller.signal,
         });
@@ -68,7 +79,7 @@ export function useChatSubmission(opts: {
               thread_id
             )}&message=${encodeURIComponent(userText)}&token=${encodeURIComponent(accessToken)}${
               storeName ? `&store_name=${encodeURIComponent(storeName)}` : ""
-            }`
+            }${model ? `&model=${encodeURIComponent(model)}` : ""}`
           );
 
             let messageBuffer = "";
@@ -138,11 +149,12 @@ export function useChatSubmission(opts: {
           toast.error("Request failed");
         }
       } finally {
+        submittingRef.current = false; // RELEASE
         setIsLoading(false);
         if (abortRef.current === controller) abortRef.current = null;
       }
     },
-    [thread_id, storeName, isLoading, onMessageUpdate, setScrollDown]
+    [thread_id, storeName, model, isLoading, onMessageUpdate, setScrollDown]
   );
 
   return { isLoading, submitMessage, cancel };
