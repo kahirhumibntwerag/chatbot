@@ -1,4 +1,5 @@
 "use client";
+
 import {
   MessageCircle,
   LogOut,
@@ -7,7 +8,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import {
   Sidebar,
   SidebarContent,
@@ -24,41 +25,21 @@ import {
 import { ThemeToggle } from "./themeToggle";
 import Link from "next/link";
 
-// Env base URL
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(
-  /\/$/,
-  ""
-);
-
+// Base URL (strip trailing slash)
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(/\/$/, "");
 const api = (path: string) =>
   `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
 
 // Types
 type ChatMessage = { text: string; sender: "user" | "model" };
-
 type Chat = {
   id: string;
   title: string;
   messages: ChatMessage[];
-  timestamp: number;
+  timestamp: number; // last modified
 };
-
-type Store = {
-  id: number;
-  store_name: string;
-  created_at: string;
-};
-
-type ChatGroups = {
-  today: Chat[];
-  last7Days: Chat[];
-  older: Chat[];
-};
-
-interface StoresResponse {
-  stores?: Store[];
-}
-
+type Store = { id: number; store_name: string; created_at: string };
+interface StoresResponse { stores?: Store[] }
 interface RawCheckpoint {
   thread_id: string;
   messages: ChatMessage[];
@@ -71,81 +52,65 @@ declare global {
   }
 }
 
-const groupChatsByDate = (chats: Chat[]): ChatGroups => {
-  const now = Date.now();
-  const oneDayMs = 24 * 60 * 60 * 1000;
-  const sevenDaysMs = 7 * oneDayMs;
-  return chats.reduce<ChatGroups>(
-    (groups, chat) => {
-      const age = now - chat.timestamp;
-      if (age < oneDayMs) groups.today.push(chat);
-      else if (age < sevenDaysMs) groups.last7Days.push(chat);
-      else groups.older.push(chat);
-      return groups;
-    },
-    { today: [], last7Days: [], older: [] }
-  );
-};
-
-function messagesToChat(
-  thread_id: string,
-  messages: ChatMessage[],
-  timestamp?: number
-): Chat {
-  const firstUserMessage = messages.find((x) => x.sender === "user");
-  const title = firstUserMessage
-    ? firstUserMessage.text.slice(0, 30) +
-      (firstUserMessage.text.length > 30 ? "..." : "")
-    : "New Chat";
-  return {
-    id: thread_id,
-    title,
-    messages,
-    timestamp: timestamp ?? Date.now(),
-  };
-}
-
-async function logout() {
-  await fetch(api("/logout"), {
-    method: "POST",
-    credentials: "include",
-  });
-  window.location.href = "/login";
-}
-
 function isChatMessageArray(v: unknown): v is ChatMessage[] {
-  return (
-    Array.isArray(v) &&
-    v.every(
-      (m) =>
-        m &&
-        typeof m === "object" &&
-        typeof (m as ChatMessage).text === "string" &&
-        ((m as ChatMessage).sender === "user" ||
-          (m as ChatMessage).sender === "model")
-    )
+  return Array.isArray(v) && v.every(
+    (m) =>
+      m &&
+      typeof m === "object" &&
+      typeof (m as any).text === "string" &&
+      ((m as any).sender === "user" || (m as any).sender === "model")
   );
 }
-
 function isRawCheckpoint(v: unknown): v is RawCheckpoint {
   return (
     !!v &&
     typeof v === "object" &&
-    typeof (v as RawCheckpoint).thread_id === "string" &&
-    isChatMessageArray((v as RawCheckpoint).messages)
+    typeof (v as any).thread_id === "string" &&
+    isChatMessageArray((v as any).messages)
   );
 }
 
-// Fetch helpers
+function toChat(row: RawCheckpoint): Chat {
+  const firstUser = row.messages.find((m) => m.sender === "user");
+  const title = firstUser
+    ? firstUser.text.slice(0, 30) + (firstUser.text.length > 30 ? "..." : "")
+    : "New Chat";
+  return {
+    id: row.thread_id,
+    title,
+    messages: row.messages,
+    // If backend provides a timestamp use it, else now
+    timestamp: typeof row.timestamp === "number" ? row.timestamp : Date.now(),
+  };
+}
+
+// Group by recency (based on last modified timestamp)
+function groupChatsByDate(chats: Chat[]) {
+  const now = Date.now();
+  const oneDay = 24 * 60 * 60 * 1000;
+  const sevenDays = 7 * oneDay;
+  return chats.reduce(
+    (acc, c) => {
+      const age = now - c.timestamp;
+      if (age < oneDay) acc.today.push(c);
+      else if (age < sevenDays) acc.last7Days.push(c);
+      else acc.older.push(c);
+      return acc;
+    },
+    { today: [] as Chat[], last7Days: [] as Chat[], older: [] as Chat[] }
+  );
+}
+
+// Data fetch
 async function fetchStores(): Promise<Store[]> {
   const tokenMatch = document.cookie.match(/(?:^|;\s*)jwt=([^;]+)/);
   const token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : null;
-  if (!token) throw new Error("No auth");
+  if (!token) return [];
   const res = await fetch(api("/stores"), {
     headers: { Authorization: `Bearer ${token}` },
     credentials: "include",
   });
-  if (!res.ok) throw new Error("Failed stores");
+  if (!res.ok) return [];
   const data: StoresResponse = await res.json();
   return Array.isArray(data.stores) ? data.stores : [];
 }
@@ -158,35 +123,30 @@ async function fetchChats(): Promise<Chat[]> {
     headers: { Authorization: `Bearer ${token}` },
     credentials: "include",
   });
-  if (!res.ok) throw new Error("Failed chats");
-  const data: unknown = await res.json();
-  if (!Array.isArray(data)) return [];
-  const chats: Chat[] = data
-    .filter(isRawCheckpoint)
-    .filter((row) => row.messages.length > 0)
-    .map((row) =>
-      messagesToChat(
-        row.thread_id,
-        row.messages,
-        typeof row.timestamp === "number" ? row.timestamp : undefined
-      )
-    )
-    .sort((a, b) => b.timestamp - a.timestamp);
+  if (!res.ok) return [];
+  const raw = await res.json();
+  if (!Array.isArray(raw)) return [];
+  const chats = raw.filter(isRawCheckpoint).filter(r => r.messages.length > 0).map(toChat);
+  // Initial ordering: newest (largest timestamp) first
+  chats.sort((a, b) => a.timestamp - b.timestamp);
   return chats;
 }
 
+async function logout() {
+  await fetch(api("/logout"), {
+    method: "POST",
+    credentials: "include",
+  });
+  window.location.href = "/login";
+}
+
+// Narrow custom event
 function isChatUpdatedEvent(
   e: Event
 ): e is CustomEvent<{ id: string; messages: ChatMessage[] }> {
-  return (
-    "detail" in e &&
-    !!(e as CustomEvent).detail &&
-    typeof (e as CustomEvent).detail.id === "string" &&
-    Array.isArray((e as CustomEvent).detail.messages)
-  );
+  return !!(e as any)?.detail?.id && Array.isArray((e as any)?.detail?.messages);
 }
 
-// Component
 export function AppSidebar() {
   const router = useRouter();
   const pathname = usePathname();
@@ -199,7 +159,13 @@ export function AppSidebar() {
   const [storesLoading, setStoresLoading] = useState(true);
   const [storesError, setStoresError] = useState(false);
 
-  // Initial fetch for chats
+  // Active chat id
+  const activeChatId = useMemo(() => {
+    const match = pathname?.match(/\/chat\/([^\/?#]+)/);
+    return match ? match[1] : null;
+  }, [pathname]);
+
+  // Initial chats
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -214,12 +180,10 @@ export function AppSidebar() {
         if (!cancelled) setChatsLoading(false);
       }
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, []);
 
-  // Initial fetch for stores
+  // Stores
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -234,105 +198,98 @@ export function AppSidebar() {
         if (!cancelled) setStoresLoading(false);
       }
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, []);
 
-  const activeChatId = useMemo(() => {
-    const match = pathname?.match(/\/chat\/([^\/?#]+)/);
-    return match ? match[1] : null;
-  }, [pathname]);
-
-  const sortChats = (list: Chat[]) =>
-    [...list].sort((a, b) => b.timestamp - a.timestamp);
-
-  const updateChatMessages = (id: string, messages: ChatMessage[]) => {
-    setChats((old) => {
-      const idx = old.findIndex((c) => c.id === id);
+  // Last-modified ordering without full sort: move item to front only when new user message
+  const updateChatMessages = useCallback((id: string, messages: ChatMessage[]) => {
+    setChats(prev => {
+      const idx = prev.findIndex(c => c.id === id);
+      const now = Date.now();
       if (idx === -1) {
-        const created = messagesToChat(id, messages);
-        return sortChats([...old, created]);
+        // New thread from elsewhere
+        const created: Chat = {
+          id,
+            title: (() => {
+              const u = messages.find(m => m.sender === "user");
+              if (!u) return "New Chat";
+              return u.text.length > 30 ? u.text.slice(0, 30) + "..." : u.text;
+            })(),
+          messages,
+          timestamp: now
+        };
+        return [created, ...prev];
       }
-      const existing = old[idx];
-      const oldLen = existing.messages.length;
-      const newLen = messages.length;
-      let bump = false;
-      if (newLen > oldLen) {
-        const newly = messages.slice(oldLen);
-        bump = newly.some((m) => m.sender === "user");
-      }
+      const existing = prev[idx];
+      const had = existing.messages.length;
+      const has = messages.length;
+      const newUserMsg =
+        has > had && messages.slice(had).some(m => m.sender === "user");
+      const newTitle =
+        existing.title === "New Chat"
+          ? (() => {
+              const u = messages.find(m => m.sender === "user");
+              if (!u) return existing.title;
+              return u.text.length > 30 ? u.text.slice(0, 30) + "..." : u.text;
+            })()
+          : existing.title;
+
       const updated: Chat = {
         ...existing,
         messages,
-        timestamp: bump ? Date.now() : existing.timestamp,
-        title:
-          existing.title === "New Chat" && messages.length
-            ? (
-                messages.find((m) => m.sender === "user")?.text ||
-                existing.title
-              ).slice(0, 30)
-            : existing.title,
+        timestamp: newUserMsg ? now : existing.timestamp,
+        title: newTitle,
       };
-      const next = [...old];
-      next[idx] = updated;
-      return sortChats(next);
+
+      if (newUserMsg) {
+        // Move to front
+        const rest = prev.filter(c => c.id !== id);
+        return [updated, ...rest];
+      }
+      // Replace in place (keep order)
+      const clone = [...prev];
+      clone[idx] = updated;
+      return clone;
     });
-  };
+  }, []);
 
   const startNewChat = () => {
     const id = crypto.randomUUID?.() || `chat_${Date.now()}`;
-    setChats((old) => {
-      if (old.some((c) => c.id === id)) return old;
+    setChats(prev => {
+      if (prev.some(c => c.id === id)) return prev;
       const newChat: Chat = {
         id,
         title: "New Chat",
         messages: [],
         timestamp: Date.now(),
       };
-      return [newChat, ...old];
+      return [newChat, ...prev];
     });
     router.push(`/chat/${id}`);
   };
 
+  // Listen for external chat updates
   useEffect(() => {
     const handler = (e: Event) => {
       if (!isChatUpdatedEvent(e)) return;
-      const { id, messages } = e.detail;
-      updateChatMessages(id, messages);
+      updateChatMessages(e.detail.id, e.detail.messages);
     };
     window.addEventListener("chatUpdated", handler);
     return () => window.removeEventListener("chatUpdated", handler);
-  }, []);
+  }, [updateChatMessages]);
 
+  // Expose thread ids globally (if used elsewhere)
   useEffect(() => {
     try {
-      window.__chatThreads = chats.map((c) => c.id);
+      window.__chatThreads = chats.map(c => c.id);
       window.dispatchEvent(new Event("chatThreadsUpdated"));
-    } catch {
-      /* ignore */
-    }
+    } catch {}
   }, [chats]);
 
-  const grouped = useMemo(() => groupChatsByDate(chats), [chats]);
-  const todayReversed = useMemo(
-    () => [...grouped.today].reverse(),
-    [grouped.today]
-  );
-  const last7Reversed = useMemo(
-    () => [...grouped.last7Days].reverse(),
-    [grouped.last7Days]
-  );
-  const olderReversed = useMemo(
-    () => [...grouped.older].reverse(),
-    [grouped.older]
-  );
+  // Group (already ordered newest-first)
+  const { today, last7Days, older } = useMemo(() => groupChatsByDate(chats), [chats]);
 
-  const storesState = storesLoading
-    ? "Loading..."
-    : storesError
-    ? "Failed"
-    : null;
+  const storesState = storesLoading ? "Loading..." : storesError ? "Failed" : null;
   const chatsState = chatsLoading ? "Loading..." : chatsError ? "Failed" : null;
 
   return (
@@ -350,156 +307,80 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroup className="mb-4">
-            <Collapsible>
-              <CollapsibleTrigger className="flex w-full items-center justify-between p-2 hover:bg-accent rounded-lg">
-                <div className="flex items-center">
-                  <Database className="mr-2 h-4 w-4" />
-                  <span>Stores</span>
-                </div>
-                <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <div className="pl-4 mt-1">
-                  {storesState && (
-                    <div className="text-xs text-muted-foreground mb-1">
-                      {storesState}
-                    </div>
-                  )}
-                  {!storesState &&
-                    stores.map((store) => (
-                      <Button
-                        key={store.id}
-                        variant="ghost"
-                        className="w-full justify-start mb-1 text-sm"
-                        onClick={() => {
-                          try {
-                            localStorage.setItem(
-                              "selectedStore",
-                              store.store_name
-                            );
-                          } catch {
-                            /* ignore */
-                          }
-                          window.dispatchEvent(
-                            new CustomEvent<string>("storeSelected", {
-                              detail: store.store_name,
-                            })
-                          );
-                        }}
-                      >
-                        <span className="truncate">{store.store_name}</span>
-                      </Button>
-                    ))}
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
-          </SidebarGroup>
-
-          <SidebarGroup className="flex-1">
-            <div className="mb-2 px-2 text-sm font-medium">Chat History</div>
-            {chatsState && (
-              <div className="px-2 text-xs text-muted-foreground">
-                {chatsState}
+        <SidebarGroup className="mb-4">
+          <Collapsible>
+            <CollapsibleTrigger className="flex w-full items-center justify-between p-2 hover:bg-accent rounded-lg">
+              <div className="flex items-center">
+                <Database className="mr-2 h-4 w-4" />
+                <span>Stores</span>
               </div>
-            )}
-            {!chatsState && (
-              <div className="space-y-4">
-                {todayReversed.length > 0 && (
-                  <div>
-                    <div className="mb-2 px-2 text-xs font-medium text-muted-foreground">
-                      Today
-                    </div>
-                    <div className="space-y-1">
-                      {todayReversed.map((chat) => (
-                        <Link key={chat.id} href={`/chat/${chat.id}`} prefetch>
-                          <Button
-                            variant="ghost"
-                            aria-current={
-                              activeChatId === chat.id ? "page" : undefined
-                            }
-                            className={`w-full justify-start px-2 text-sm ${
-                              activeChatId === chat.id
-                                ? "bg-accent text-accent-foreground"
-                                : ""
-                            }`}
-                          >
-                            <MessageCircle className="mr-2 h-4 w-4" />
-                            <span className="truncate w-full">
-                              {chat.title}
-                            </span>
-                          </Button>
-                        </Link>
-                      ))}
-                    </div>
+              <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="pl-4 mt-1">
+                {storesState && (
+                  <div className="text-xs text-muted-foreground mb-1">
+                    {storesState}
                   </div>
                 )}
-
-                {last7Reversed.length > 0 && (
-                  <div>
-                    <div className="mb-2 px-2 text-xs font-medium text-muted-foreground">
-                      Last 7 Days
-                    </div>
-                    <div className="space-y-1">
-                      {last7Reversed.map((chat) => (
-                        <Button
-                          key={chat.id}
-                          variant="ghost"
-                          aria-current={
-                            activeChatId === chat.id ? "page" : undefined
-                          }
-                          className={`w-full justify-start px-2 text-sm ${
-                            activeChatId === chat.id
-                              ? "bg-accent text-accent-foreground"
-                              : ""
-                          }`}
-                          onClick={() => {
-                            router.push(`/chat/${chat.id}`);
-                          }}
-                        >
-                          <MessageCircle className="mr-2 h-4 w-4" />
-                          <span className="truncate w-full">{chat.title}</span>
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {olderReversed.length > 0 && (
-                  <div>
-                    <div className="mb-2 px-2 text-xs font-medium text-muted-foreground">
-                      Older
-                    </div>
-                    <div className="space-y-1">
-                      {olderReversed.map((chat) => (
-                        <Button
-                          key={chat.id}
-                          variant="ghost"
-                          aria-current={
-                            activeChatId === chat.id ? "page" : undefined
-                          }
-                          className={`w-full justify-start px-2 text-sm ${
-                            activeChatId === chat.id
-                              ? "bg-accent text-accent-foreground"
-                              : ""
-                          }`}
-                          onClick={() => {
-                            router.push(`/chat/${chat.id}`);
-                          }}
-                        >
-                          <MessageCircle className="mr-2 h-4 w-4" />
-                          <span className="truncate w-full">{chat.title}</span>
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                {!storesState &&
+                  stores.map((store) => (
+                    <Button
+                      key={store.id}
+                      variant="ghost"
+                      className="w-full justify-start mb-1 text-sm"
+                      onClick={() => {
+                        try {
+                          localStorage.setItem("selectedStore", store.store_name);
+                        } catch {}
+                        window.dispatchEvent(
+                          new CustomEvent<string>("storeSelected", {
+                            detail: store.store_name,
+                          })
+                        );
+                      }}
+                    >
+                      <span className="truncate">{store.store_name}</span>
+                    </Button>
+                  ))}
               </div>
-            )}
-          </SidebarGroup>
+            </CollapsibleContent>
+          </Collapsible>
+        </SidebarGroup>
+
+        <SidebarGroup className="flex-1">
+          <div className="mb-2 px-2 text-sm font-medium">Chat History</div>
+          {chatsState && (
+            <div className="px-2 text-xs text-muted-foreground">{chatsState}</div>
+          )}
+          {!chatsState && (
+            <div className="space-y-4">
+              {today.length > 0 && (
+                <ChatSection
+                  label="Today"
+                  chats={today}
+                  activeChatId={activeChatId}
+                />
+              )}
+              {last7Days.length > 0 && (
+                <ChatSection
+                  label="Last 7 Days"
+                  chats={last7Days}
+                  activeChatId={activeChatId}
+                />
+              )}
+              {older.length > 0 && (
+                <ChatSection
+                  label="Older"
+                  chats={older}
+                  activeChatId={activeChatId}
+                />
+              )}
+            </div>
+          )}
         </SidebarGroup>
       </SidebarContent>
+
       <SidebarFooter>
         <Button variant="secondary" onClick={logout}>
           <LogOut className="mr-2 h-4 w-4" />
@@ -507,5 +388,42 @@ export function AppSidebar() {
         </Button>
       </SidebarFooter>
     </Sidebar>
+  );
+}
+
+// Extracted section to avoid re-rendering unrelated parts when only active id changes
+function ChatSection({
+  label,
+  chats,
+  activeChatId,
+}: {
+  label: string;
+  chats: Chat[];
+  activeChatId: string | null;
+}) {
+  return (
+    <div>
+      <div className="mb-2 px-2 text-xs font-medium text-muted-foreground">
+        {label}
+      </div>
+      <div className="space-y-1">
+        {chats.map((chat) => (
+          <Link key={chat.id} href={`/chat/${chat.id}`} prefetch>
+            <Button
+              variant="ghost"
+              aria-current={activeChatId === chat.id ? "page" : undefined}
+              className={`w-full justify-start px-2 text-sm ${
+                activeChatId === chat.id
+                  ? "bg-accent text-accent-foreground"
+                  : ""
+              }`}
+            >
+              <MessageCircle className="mr-2 h-4 w-4" />
+              <span className="truncate w-full">{chat.title}</span>
+            </Button>
+          </Link>
+        ))}
+      </div>
+    </div>
   );
 }

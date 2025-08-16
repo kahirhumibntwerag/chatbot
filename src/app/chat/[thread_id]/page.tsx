@@ -156,7 +156,7 @@ export default function Home() {
   const { isLoading: submissionLoading, submitMessage, /* ADD: */ cancel: cancelSubmission } = useChatSubmission({
     thread_id: normalizedThreadId,
     storeName,
-    onMessageUpdate: setMessages,
+    onMessageUpdate: (updater) => setMessages(updater),
     setScrollDown,
   });
 
@@ -292,37 +292,20 @@ export default function Home() {
                   className="w-full resize-none p-2"
                 />
                 <div
-                  className={`flex items-center ${
-                    storeName ? "justify-between" : "hidden"
-                  } gap-2 w-full flex-1/2`}
+                  className={`flex items-center justify-between gap-2 w-full flex-1/2`}
                 >
                   <div className="min-w-[180px]">
                     <Select
                       value={storeName || undefined}
                       onValueChange={handleStoreSelect}
                     >
-                      <SelectTrigger className="h-9 rounded-2xl bg-accent/70 backdrop-blur-sm border px-2 data-[placeholder]:opacity-60 ">
-                        {storeName ? (
-                          // Display-only indicator inside trigger
-                          <div className="pointer-events-none">
-                            <StoreIndicator
-                              storeName={storeName}
-                              stores={stores}
-                              onStoreSelect={setStoreName}
-
-                            />
-                          </div>
-                        ) : (
-                          <SelectValue
-                            placeholder={
-                              storeLoading
-                                ? "Loading stores..."
-                                : stores.length
-                                ? "Select store"
-                                : "No stores"
-                            }
+                      <SelectTrigger className={`h-9 rounded-2xl bg-accent/70 backdrop-blur-sm border px-2 data-[placeholder]:opacity-60 ${storeName ? "" : "hidden"}`}>
+                      {(storeName &&
+                          <StoreIndicator
+                            storeName={storeName}
                           />
-                        )}
+                        ) 
+                        }
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
