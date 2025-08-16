@@ -6,14 +6,16 @@ import { API_BASE_URL } from "@/lib/apiConfig";
 // Define local message type (align with actual usage)
 export type ChatMessage = { sender: "user" | "model"; text: string };
 
+// Add toolNames to opts and destructure it
 export function useChatSubmission(opts: {
   thread_id: string;
   storeName?: string | null;
   model?: string | null;
+  toolNames?: string[] | null; // <-- Add this line
   onMessageUpdate: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
   setScrollDown?: (b: boolean) => void;
 }) {
-  const { thread_id, storeName, model, onMessageUpdate, setScrollDown } = opts;
+  const { thread_id, storeName, model, toolNames, onMessageUpdate, setScrollDown } = opts; // <-- Add toolNames
   const [isLoading, setIsLoading] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const submittingRef = useRef(false); // ADD
@@ -79,7 +81,11 @@ export function useChatSubmission(opts: {
               thread_id
             )}&message=${encodeURIComponent(userText)}&token=${encodeURIComponent(accessToken)}${
               storeName ? `&store_name=${encodeURIComponent(storeName)}` : ""
-            }${model ? `&model=${encodeURIComponent(model)}` : ""}`
+            }${model ? `&model=${encodeURIComponent(model)}` : ""}${
+              toolNames && toolNames.length > 0
+                ? `&tool_names=${encodeURIComponent(toolNames.join(","))}`
+                : ""
+            }`
           );
 
             let messageBuffer = "";
@@ -154,7 +160,7 @@ export function useChatSubmission(opts: {
         if (abortRef.current === controller) abortRef.current = null;
       }
     },
-    [thread_id, storeName, model, isLoading, onMessageUpdate, setScrollDown]
+    [thread_id, storeName, model, toolNames, isLoading, onMessageUpdate, setScrollDown]
   );
 
   return { isLoading, submitMessage, cancel };

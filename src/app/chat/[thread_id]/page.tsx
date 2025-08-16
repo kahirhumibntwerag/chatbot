@@ -5,8 +5,7 @@ import { AppSidebar } from "@/components/ui/sidebar-app";
 import { useRef, useState, useEffect, SetStateAction } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Plus } from "lucide-react";
-
+import { Send, Plus, Unplug } from "lucide-react";
 import { useParams } from "next/navigation";
 import {
   DropdownMenu,
@@ -46,8 +45,7 @@ import { ArrowDown } from "lucide-react";
 import { API_BASE_URL } from "@/lib/apiConfig"; // add
 import { Input } from "@/components/ui/input";
 import Image from "next/image"; // ADD
-
-// Create a custom hook for chat history management
+import { Switch } from "@/components/ui/switch";
 
 export default function Home() {
   const router = useRouter();
@@ -71,7 +69,6 @@ export default function Home() {
       ? thread_id[0] ?? ""
       : "";
   const [messages, setMessages] = useChatHistory(normalizedThreadId);
-  console.log("Chat messages:", messages);
   // New state to control one-time animation
   const [animateFirstBatch, setAnimateFirstBatch] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -98,6 +95,12 @@ export default function Home() {
     "gpt-5-mini",
     "gpt-5-nano",
   ]; // edit as needed
+  const tools = [
+    { label: "internet search", id: "tavily_search" },
+    { label: "knowledge base search", id: "search_documents" },
+    { label: "search arxiv", id: "arxiv_search" },
+  ];
+  const [selectedToolIds, setSelectedToolIds] = useState<string[]>([]);
   const isOpenAIModel = (m: string) => m.startsWith("gpt-"); // ADD helper
 
   const handleStoreSelect = (val: string) => {
@@ -175,6 +178,7 @@ export default function Home() {
     thread_id: normalizedThreadId,
     storeName,
     model, // PASS model
+    toolNames: selectedToolIds, // PASS mapped tool IDs
     onMessageUpdate: (updater) => {
       console.log("Message update:", updater);
       setMessages(updater);
@@ -372,10 +376,48 @@ export default function Home() {
                       </SelectGroup>
                     </SelectContent>
                   </Select>
+                  {/* Tools menu beside model */}
+                 
                 </div>
-                {/* ADD: Model selector */}
 
                 <div className="flex items-center justify-center gap-2">
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 rounded-full"
+                        aria-label="Tools"
+                        title="Tools"
+                      >
+                        <Unplug className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-56">
+                      <div className="px-2 py-1 text-xs font-medium text-muted-foreground">
+                        Tools
+                      </div>
+                      {tools.map((tool) => (
+                        <div
+                          key={tool.id}
+                          className="flex items-center justify-between px-2 py-2"
+                        >
+                          <span className="text-sm capitalize">{tool.label}</span>
+                          <Switch
+                            checked={selectedToolIds.includes(tool.id)}
+                            onCheckedChange={() => {
+                              setSelectedToolIds((prev) =>
+                                prev.includes(tool.id)
+                                  ? prev.filter((t) => t !== tool.id)
+                                  : [...prev, tool.id]
+                              );
+                            }}
+                            aria-label={`Toggle ${tool.label}`}
+                          />
+                        </div>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
