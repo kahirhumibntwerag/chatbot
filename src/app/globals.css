@@ -400,3 +400,40 @@ body::-webkit-scrollbar {
   word-break: break-word;
   max-width: 100%;
 }
+
+/* Animated neon border that preserves the element's own border-radius */
+.neon-border-animated {
+  position: relative;
+}
+.neon-border-animated::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 1px; /* border thickness */
+  border-radius: inherit;
+  background: conic-gradient(
+    from 0deg,
+    rgb(88 101 242),
+    rgb(124 91 242),
+    rgb(170 91 242),
+    rgb(124 91 242),
+    rgb(88 101 242)
+  );
+  /* Create a hollow center so only the border shows */
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: neonBorderRotate 3s linear infinite;
+  pointer-events: none;
+}
+/* Subtle glow */
+.neon-border-animated::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow:
+    0 0 8px color-mix(in srgb, var(--neon-accent) 60%, transparent),
+    0 0 16px color-mix(in srgb, var(--neon-accent) 40%, transparent);
+  pointer-events: none;
+}

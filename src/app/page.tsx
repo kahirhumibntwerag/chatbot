@@ -1,13 +1,23 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function Home() {
   const router = useRouter();
+  const [isStarting, setIsStarting] = useState(false);
 
   return (
-    <main className="bg-neon min-h-screen flex flex-col items-center justify-center px-6 relative overflow-hidden w-full">
+    <main
+      className="bg-neon min-h-screen flex flex-col items-center justify-center px-6 relative overflow-hidden w-full"
+      style={{
+        // Align landing accent with switch/input blue
+        // rgb(124 91 242) matches the switch glow/palette
+        // Also align focus ring hue for consistency
+        ["--neon-accent" as any]: "rgb(124 91 242)",
+        ["--ring" as any]: "rgb(124 91 242)",
+      }}
+    >
       {/* Subtle overlay */}
       <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_70%_20%,rgba(255,255,255,0.05),transparent_60%)]" />
 
@@ -31,18 +41,31 @@ export default function Home() {
 
         <div className="flex flex-col sm:flex-row gap-5 justify-center">
           <button
-            onClick={() => router.push("/chat")}
-            className="neon-border relative inline-flex items-center justify-center px-12 py-4 font-semibold rounded-full text-sm tracking-wide transition group bg-[#0c0f19]/70 backdrop-blur-md"
+            onClick={() => {
+              if (isStarting) return;
+              setIsStarting(true);
+              router.push("/chat");
+            }}
+            disabled={isStarting}
+            aria-busy={isStarting}
+            className="neon-border relative inline-flex items-center justify-center px-12 py-4 font-semibold rounded-full text-sm tracking-wide transition group bg-[#0c0f19]/70 backdrop-blur-md disabled:opacity-70"
             style={{
               color: "var(--neon-accent)",
             }}
           >
-            <span className="relative flex items-center">
-              Start Chatting
-              <span className="ml-2 transition-transform group-hover:translate-x-1">
-                →
+            {isStarting ? (
+              <span className="relative flex items-center gap-2">
+                <span className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent" />
+                <span>Starting…</span>
               </span>
-            </span>
+            ) : (
+              <span className="relative flex items-center">
+                Start Chatting
+                <span className="ml-2 transition-transform group-hover:translate-x-1">
+                  →
+                </span>
+              </span>
+            )}
           </button>
 
           <a

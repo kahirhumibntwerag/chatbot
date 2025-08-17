@@ -76,8 +76,11 @@ const Login = () => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen w-full bg-neon">
-      <Card className="w-full max-w-md p-6">
+    <div
+      className="flex flex-col items-center justify-center min-h-screen w-full bg-neon"
+      style={{ ["--neon-accent" as any]: "rgb(124 91 242)", ["--ring" as any]: "rgb(124 91 242)" }}
+    >
+      <Card className="w-full max-w-md p-6 bg-white/10 backdrop-blur-md border border-transparent shadow-xl neon-border-animated rounded-xl">
         <CardHeader>
           <CardTitle>Login</CardTitle>
           <CardDescription>Please enter your credentials</CardDescription>

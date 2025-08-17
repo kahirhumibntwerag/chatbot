@@ -22,7 +22,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import FileUploader from "@/components/ui/fileUploader";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useChatHistory } from "@/hooks/useChatHistory";
 import { StoreIndicator } from "@/components/ui/StoreIndicator";
 import { useStoreManagement } from "@/hooks/useStoreManagement";
@@ -46,6 +46,7 @@ import { API_BASE_URL } from "@/lib/apiConfig"; // add
 import { Input } from "@/components/ui/input";
 import Image from "next/image"; // ADD
 import { Switch } from "@/components/ui/switch";
+import { useChatSettings } from "@/providers/ChatSettingsProvider";
 
 export default function Home() {
   const router = useRouter();
@@ -80,14 +81,15 @@ export default function Home() {
     null
   ) as React.RefObject<HTMLTextAreaElement>;
   const messagesRef = useRef<HTMLDivElement>(null);
+  const [placeholderHeight, setPlaceholderHeight] = useState(0);
 
   // NEW: Visibility state for thread switch
   const [isThreadVisible, setIsThreadVisible] = useState(false);
 
   // ADD: scroll-to-bottom visibility state
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
-  // ADD: model selection state + list
-  const [model, setModel] = useState<string | null>("gpt-5-mini");
+  // ADD: model + tools from global settings
+  const { model, setModel, selectedToolIds, toggleTool } = useChatSettings();
   const availableModels = [
     "gpt-4o-mini",
     "gpt-4o",
@@ -100,7 +102,6 @@ export default function Home() {
     { label: "knowledge base search", id: "search_documents" },
     { label: "search arxiv", id: "arxiv_search" },
   ];
-  const [selectedToolIds, setSelectedToolIds] = useState<string[]>([]);
   const isOpenAIModel = (m: string) => m.startsWith("gpt-"); // ADD helper
 
   const handleStoreSelect = (val: string) => {
@@ -196,6 +197,57 @@ export default function Home() {
     setInput("");
   };
 
+  // Compute how much visible space remains below the messages inside the scroll area
+  useEffect(() => {
+    if (!submissionLoading) return;
+    const scrollEl = scrollRef.current;
+    const listEl = messagesRef.current;
+    if (!scrollEl) return;
+
+    const compute = () => {
+      const viewportHeight = scrollEl.clientHeight;
+      let lastImageHeight = 0;
+      if (listEl) {
+        const imgs = listEl.querySelectorAll("img");
+        const lastImg = imgs[imgs.length - 1] as HTMLImageElement | undefined;
+        if (lastImg) {
+          const rect = lastImg.getBoundingClientRect();
+          lastImageHeight = rect.height;
+        }
+      }
+      setPlaceholderHeight(viewportHeight + lastImageHeight);
+    };
+
+    // Recompute on resize and once images load
+    compute();
+    window.addEventListener("resize", compute);
+    const id = requestAnimationFrame(compute);
+
+    const imgs = listEl?.querySelectorAll("img") ?? [];
+    const handlers: Array<() => void> = [];
+    imgs.forEach((img) => {
+      const handler = () => compute();
+      handlers.push(() => img.removeEventListener("load", handler));
+      img.addEventListener("load", handler, { once: true });
+      // If the image is already loaded, compute immediately
+      if ((img as HTMLImageElement).complete) compute();
+    });
+
+    return () => {
+      window.removeEventListener("resize", compute);
+      cancelAnimationFrame(id);
+      handlers.forEach((off) => off());
+    };
+  }, [submissionLoading, messages.length]);
+
+  // Smooth scroll to bottom when loading starts
+  useEffect(() => {
+    if (!submissionLoading) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, [submissionLoading]);
+
   // After first animation plays once, disable further animations
   useEffect(() => {
     if (animateFirstBatch && messages.length > 0) {
@@ -267,16 +319,31 @@ export default function Home() {
               e.preventDefault();
               handleSubmit();
             }}
-            className="flex flex-col w-full max-w-[800px] mx-auto h-full"
+            className="flex flex-col w-full max-w-[800px] mx-auto h-full "
           >
             {messages.length > 0 && (
-              <MessageList
-                messages={messages}
-                loading={submissionLoading}
-                animatedFirstBatch={animateFirstBatch}
-                isThreadVisible={isThreadVisible}
-              />
+              <div ref={messagesRef}>
+                <MessageList
+                  messages={messages}
+                  loading={submissionLoading}
+                  animatedFirstBatch={animateFirstBatch}
+                  isThreadVisible={isThreadVisible}
+                />
+              </div>
             )}
+            <AnimatePresence>
+              {submissionLoading && (
+                <motion.div
+                  key="loading-gap"
+                  initial={{ opacity: 0, paddingTop: 0 }}
+                  animate={{ opacity: 1, paddingTop: placeholderHeight }}
+                  exit={{ opacity: 0, paddingTop: 0 }}
+                  transition={{ duration: 0.25, ease: "easeOut" }}
+                  className="w-full"
+                  aria-hidden
+                />
+              )}
+            </AnimatePresence>
           </form>
         </div>
 
@@ -405,13 +472,7 @@ export default function Home() {
                           <span className="text-sm capitalize">{tool.label}</span>
                           <Switch
                             checked={selectedToolIds.includes(tool.id)}
-                            onCheckedChange={() => {
-                              setSelectedToolIds((prev) =>
-                                prev.includes(tool.id)
-                                  ? prev.filter((t) => t !== tool.id)
-                                  : [...prev, tool.id]
-                              );
-                            }}
+                            onCheckedChange={() => toggleTool(tool.id)}
                             aria-label={`Toggle ${tool.label}`}
                           />
                         </div>
