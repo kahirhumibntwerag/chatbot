@@ -338,7 +338,7 @@ export default function Home() {
         <div
           className={`sticky ${
             messages.length > 0 ? "bottom-8" : "bottom-[50%]"
-          } bg-background/50 backdrop-blur-md relative pb-[env(safe-area-inset-bottom)] mx-2`}
+          } bg-background/50 backdrop-blur-md relative pb-[env(safe-area-inset-bottom)] sm:w-full `}
         >
           {/* NEW: scroll-to-bottom button placed just above the input area */}
           {showScrollToBottom && (
@@ -359,7 +359,7 @@ export default function Home() {
               <ArrowDown className="h-4 w-4" />
             </Button>
           )}
-          <div className="max-w-[800px] mx-auto px-4 py-2">
+          <div className="max-w-[1200px] mx-auto px-4 py-2 sm:w-full ">
             <motion.div
               className={`flex flex-col w-full p-2
     shadow-xl bg-background/80 backdrop-blur-sm neon-border
@@ -376,9 +376,9 @@ export default function Home() {
                 className="w-full resize-none p-2"
               />
               <div
-                className={`flex  items-center justify-between gap-x-2 gap-y-2 w-full`}
+                className={`flex items-center justify-between gap-2 w-full`}
               >
-                <div className="min-w-0 flex  gap-2 w-full sm:w-auto">
+                <div className="min-w-0 flex items-center gap-2 flex-wrap sm:w-auto">
                   <Select
                     value={storeName || undefined}
                     onValueChange={handleStoreSelect}
@@ -436,7 +436,7 @@ export default function Home() {
                  
                 </div>
 
-                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-end flex-wrap mt-2 sm:mt-0">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
