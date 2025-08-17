@@ -51,18 +51,7 @@ export function useChatSubmission(opts: {
       setIsLoading(true);
 
       try {
-        // (Optional) If /api/chat is a Next.js route proxying backend, leave as-is.
-        await fetch("/api/chat", {
-          method: "POST",
-            headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            thread_id,
-            store_name: storeName || undefined,
-            message: userText,
-            model: model || undefined,
-          }),
-          signal: controller.signal,
-        });
+
 
         const cookies = document.cookie.split(";").map(c => c.trim());
         const accessToken = cookies.find(c => c.startsWith("jwt="))?.split("=")[1];

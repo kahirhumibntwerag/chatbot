@@ -1,6 +1,8 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { useStoreManagement } from "@/hooks/useStoreManagement";
+import type { Store } from "@/types/store";
 
 type ChatSettingsContextValue = {
   model: string | null;
@@ -8,6 +10,14 @@ type ChatSettingsContextValue = {
   selectedToolIds: string[];
   setSelectedToolIds: React.Dispatch<React.SetStateAction<string[]>>;
   toggleTool: (id: string) => void;
+  stores: Store[];
+  storeName: string | null;
+  setStoreName: (name: string | null) => void;
+  storesLoading: boolean;
+  storesError: string | null;
+  createStore: (name: string) => Promise<boolean>;
+  isCreateStoreOpen: boolean;
+  setIsCreateStoreOpen: (open: boolean) => void;
 };
 
 const ChatSettingsContext = createContext<ChatSettingsContextValue | null>(null);
@@ -17,6 +27,17 @@ const STORAGE_KEY = "chat_settings";
 export function ChatSettingsProvider({ children }: { children: React.ReactNode }) {
   const [model, setModel] = useState<string | null>('gpt-5-nano');
   const [selectedToolIds, setSelectedToolIds] = useState<string[]>([]);
+
+  const {
+    stores,
+    storeName,
+    setStoreName,
+    isLoading: storesLoading,
+    error: storesError,
+    createStore,
+    isCreateStoreOpen,
+    setIsCreateStoreOpen,
+  } = useStoreManagement();
 
   // Load persisted settings
   useEffect(() => {
@@ -55,8 +76,31 @@ export function ChatSettingsProvider({ children }: { children: React.ReactNode }
   };
 
   const value = useMemo<ChatSettingsContextValue>(
-    () => ({ model, setModel, selectedToolIds, setSelectedToolIds, toggleTool }),
-    [model, selectedToolIds]
+    () => ({
+      model,
+      setModel,
+      selectedToolIds,
+      setSelectedToolIds,
+      toggleTool,
+      stores,
+      storeName,
+      setStoreName,
+      storesLoading,
+      storesError,
+      createStore,
+      isCreateStoreOpen,
+      setIsCreateStoreOpen,
+    }),
+    [
+      model,
+      selectedToolIds,
+      stores,
+      storeName,
+      storesLoading,
+      storesError,
+      createStore,
+      isCreateStoreOpen,
+    ]
   );
 
   return (

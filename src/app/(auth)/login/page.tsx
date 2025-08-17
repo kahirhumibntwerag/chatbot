@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import Link from "next/dist/client/link";
+import { Loader2 } from "lucide-react";
 import { API_BASE_URL } from "@/lib/apiConfig";
 
 const Login = () => {
@@ -105,6 +106,7 @@ const Login = () => {
             />
             <div className="flex items-center space-x-4 mt-4">
               <Button type="submit" disabled={isLoading}>
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isLoading ? "Signing in..." : "Sign in"}
               </Button>
               <Link className="hover:underline" href="/signup">

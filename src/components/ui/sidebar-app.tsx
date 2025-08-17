@@ -6,6 +6,7 @@ import {
   Plus,
   Database,
   ChevronDown,
+  Loader2,
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useMemo, useState, useCallback } from "react";
@@ -24,6 +25,7 @@ import {
 } from "@/components/ui/collapsible";
 import { ThemeToggle } from "./themeToggle";
 import Link from "next/link";
+import { useChatSettings } from "@/providers/ChatSettingsProvider";
 
 // Base URL (strip trailing slash)
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(/\/$/, "");
@@ -38,18 +40,9 @@ type Chat = {
   messages: ChatMessage[];
   timestamp: number; // last modified
 };
-type Store = { id: number; store_name: string; created_at: string };
-interface StoresResponse { stores?: Store[] }
-interface RawCheckpoint {
-  thread_id: string;
-  messages: ChatMessage[];
-  timestamp?: number;
-}
 
 declare global {
-  interface Window {
-    __chatThreads?: string[];
-  }
+  interface Window { __chatThreads?: string[] }
 }
 
 function isChatMessageArray(v: unknown): v is ChatMessage[] {
@@ -61,7 +54,7 @@ function isChatMessageArray(v: unknown): v is ChatMessage[] {
       ((m as any).sender === "user" || (m as any).sender === "model")
   );
 }
-function isRawCheckpoint(v: unknown): v is RawCheckpoint {
+function isRawCheckpoint(v: unknown): v is { thread_id: string; messages: ChatMessage[]; timestamp?: number } {
   return (
     !!v &&
     typeof v === "object" &&
@@ -70,7 +63,7 @@ function isRawCheckpoint(v: unknown): v is RawCheckpoint {
   );
 }
 
-function toChat(row: RawCheckpoint): Chat {
+function toChat(row: { thread_id: string; messages: ChatMessage[]; timestamp?: number }): Chat {
   const firstUser = row.messages.find((m) => m.sender === "user");
   const title = firstUser
     ? firstUser.text.slice(0, 30) + (firstUser.text.length > 30 ? "..." : "")
@@ -101,20 +94,6 @@ function groupChatsByDate(chats: Chat[]) {
   );
 }
 
-// Data fetch
-async function fetchStores(): Promise<Store[]> {
-  const tokenMatch = document.cookie.match(/(?:^|;\s*)jwt=([^;]+)/);
-  const token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : null;
-  if (!token) return [];
-  const res = await fetch(api("/stores"), {
-    headers: { Authorization: `Bearer ${token}` },
-    credentials: "include",
-  });
-  if (!res.ok) return [];
-  const data: StoresResponse = await res.json();
-  return Array.isArray(data.stores) ? data.stores : [];
-}
-
 async function fetchChats(): Promise<Chat[]> {
   const tokenMatch = document.cookie.match(/(?:^|;\s*)jwt=([^;]+)/);
   const token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : null;
@@ -132,13 +111,7 @@ async function fetchChats(): Promise<Chat[]> {
   return chats;
 }
 
-async function logout() {
-  await fetch(api("/logout"), {
-    method: "POST",
-    credentials: "include",
-  });
-  window.location.href = "/login";
-}
+// removed standalone logout in favor of component-scoped handler with loading state
 
 // Narrow custom event
 function isChatUpdatedEvent(
@@ -155,9 +128,8 @@ export function AppSidebar() {
   const [chatsLoading, setChatsLoading] = useState(true);
   const [chatsError, setChatsError] = useState(false);
 
-  const [stores, setStores] = useState<Store[]>([]);
-  const [storesLoading, setStoresLoading] = useState(true);
-  const [storesError, setStoresError] = useState(false);
+  const { stores, setStoreName, storesLoading, storesError } = useChatSettings();
+  const [logoutLoading, setLogoutLoading] = useState(false);
 
   // Active chat id
   const activeChatId = useMemo(() => {
@@ -178,24 +150,6 @@ export function AppSidebar() {
         if (!cancelled) setChatsError(true);
       } finally {
         if (!cancelled) setChatsLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
-
-  // Stores
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setStoresLoading(true);
-      setStoresError(false);
-      try {
-        const data = await fetchStores();
-        if (!cancelled) setStores(data);
-      } catch {
-        if (!cancelled) setStoresError(true);
-      } finally {
-        if (!cancelled) setStoresLoading(false);
       }
     })();
     return () => { cancelled = true; };
@@ -252,21 +206,6 @@ export function AppSidebar() {
       return clone;
     });
   }, []);
-
-  const startNewChat = () => {
-    const id = crypto.randomUUID?.() || `chat_${Date.now()}`;
-    setChats(prev => {
-      if (prev.some(c => c.id === id)) return prev;
-      const newChat: Chat = {
-        id,
-        title: "New Chat",
-        messages: [],
-        timestamp: Date.now(),
-      };
-      return [newChat, ...prev];
-    });
-    router.push(`/chat/${id}`);
-  };
 
   // Listen for external chat updates
   useEffect(() => {
@@ -329,16 +268,7 @@ export function AppSidebar() {
                       key={store.id}
                       variant="ghost"
                       className="w-full justify-start mb-1 text-sm"
-                      onClick={() => {
-                        try {
-                          localStorage.setItem("selectedStore", store.store_name);
-                        } catch {}
-                        window.dispatchEvent(
-                          new CustomEvent<string>("storeSelected", {
-                            detail: store.store_name,
-                          })
-                        );
-                      }}
+                      onClick={() => setStoreName(store.store_name)}
                     >
                       <span className="truncate">{store.store_name}</span>
                     </Button>
@@ -382,13 +312,46 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter>
-        <Button variant="secondary" onClick={logout}>
-          <LogOut className="mr-2 h-4 w-4" />
-          <span>Logout</span>
+        <Button
+          variant="secondary"
+          onClick={async () => {
+            if (logoutLoading) return;
+            setLogoutLoading(true);
+            try {
+              await fetch(api("/logout"), {
+                method: "POST",
+                credentials: "include",
+              });
+            } catch {}
+            window.location.href = "/login";
+          }}
+          disabled={logoutLoading}
+        >
+          {logoutLoading ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <LogOut className="mr-2 h-4 w-4" />
+          )}
+          <span>{logoutLoading ? "Logging out..." : "Logout"}</span>
         </Button>
       </SidebarFooter>
     </Sidebar>
   );
+
+  function startNewChat() {
+    const id = crypto.randomUUID?.() || `chat_${Date.now()}`;
+    setChats(prev => {
+      if (prev.some(c => c.id === id)) return prev;
+      const newChat: Chat = {
+        id,
+        title: "New Chat",
+        messages: [],
+        timestamp: Date.now(),
+      };
+      return [newChat, ...prev];
+    });
+    router.push(`/chat/${id}`);
+  }
 }
 
 // Extracted section to avoid re-rendering unrelated parts when only active id changes

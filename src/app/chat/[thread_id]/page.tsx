@@ -25,7 +25,7 @@ import FileUploader from "@/components/ui/fileUploader";
 import { motion, AnimatePresence } from "framer-motion";
 import { useChatHistory } from "@/hooks/useChatHistory";
 import { StoreIndicator } from "@/components/ui/StoreIndicator";
-import { useStoreManagement } from "@/hooks/useStoreManagement";
+// stores now come from settings context
 import { useAutoResize } from "@/hooks/useAutoResizeTextArea";
 import { useAutoScroll } from "@/hooks/useAutoScroll";
 import { useChatSubmission } from "@/hooks/useChatSubmission";
@@ -42,26 +42,31 @@ import {
 // ADD: Stop icon
 import { MessageList } from "@/components/MessageList";
 import { ArrowDown } from "lucide-react";
-import { API_BASE_URL } from "@/lib/apiConfig"; // add
 import { Input } from "@/components/ui/input";
 import Image from "next/image"; // ADD
 import { Switch } from "@/components/ui/switch";
 import { useChatSettings } from "@/providers/ChatSettingsProvider";
+import { useAuth } from "@/providers/AuthProvider";
 
 export default function Home() {
   const router = useRouter();
   const { thread_id } = useParams();
+  const { isAuthLoading } = useAuth();
   const [input, setInput] = useState("");
   const {
     stores,
     storeName,
     setStoreName,
-    isLoading: storeLoading,
-    error: storeError,
+    storesLoading: storeLoading,
+    storesError: storeError,
     createStore,
     isCreateStoreOpen,
     setIsCreateStoreOpen,
-  } = useStoreManagement();
+    model,
+    setModel,
+    selectedToolIds,
+    toggleTool,
+  } = useChatSettings();
   const [newStoreName, setNewStoreName] = useState("");
   const normalizedThreadId =
     typeof thread_id === "string"
@@ -88,8 +93,7 @@ export default function Home() {
 
   // ADD: scroll-to-bottom visibility state
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
-  // ADD: model + tools from global settings
-  const { model, setModel, selectedToolIds, toggleTool } = useChatSettings();
+  // model, tools, and stores are from settings context
   const availableModels = [
     "gpt-4o-mini",
     "gpt-4o",
@@ -264,53 +268,13 @@ export default function Home() {
     return () => cancelAnimationFrame(id);
   }, [normalizedThreadId]);
 
-  // REMOVE direct cookie read + accessToken redirect
-  // const cookies = document.cookie.split(";");
-  // const accessToken = cookies
-  //   .find((cookie) => cookie.trim().startsWith("jwt="))
-  //   ?.split("=")[1];
-  // useEffect(() => {
-  //   if (!accessToken) {
-  //     router.push("/login");
-  //   }
-  // }, [accessToken]);
-
-  // Auth check: calls backend; if 401 redirect
-  useEffect(() => {
-    let cancelled = false;
-
-    const getToken = () => {
-      if (typeof document === "undefined") return null;
-      // Adjust cookie key if different (e.g. "access_token")
-      const raw = document.cookie
-        .split(";")
-        .find((c) => c.trim().startsWith("jwt="));
-      return raw ? raw.split("=")[1] : null;
-    };
-
-    (async () => {
-      try {
-        const token = getToken();
-        const res = await fetch(`${API_BASE_URL}/users/me`, {
-          credentials: "include", // keep if backend also supports cookie session
-          headers: {
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            Accept: "application/json",
-          },
-        });
-        if (!res.ok) throw new Error("unauth");
-      } catch {
-        if (!cancelled) router.replace("/login");
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [router]);
+  // If auth is loading, render a minimal placeholder to avoid flicker
+  if (isAuthLoading) {
+    return <div className="flex h-svh w-full" />;
+  }
 
   return (
-    <div className="flex h-svh w-full ">
+    <div key={normalizedThreadId} className="flex h-svh w-full ">
       <div className="flex flex-col w-full">
         <div ref={scrollRef} className="flex-1 overflow-y-auto relative">
           {/* REMOVED old scroll-to-bottom button inside scroll area */}
