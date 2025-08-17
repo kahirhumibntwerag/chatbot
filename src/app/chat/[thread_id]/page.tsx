@@ -337,7 +337,7 @@ export default function Home() {
         {/* Fixed input container at the bottom */}
         <div
           className={`sticky ${
-            messages.length > 0 ? "bottom-2 " : "bottom-[50%] h-0"
+            messages.length > 0 ? "bottom-2 " : "bottom-[65%] h-0"
           } bg-background/50 backdrop-blur-md relative pb-[env(safe-area-inset-bottom)] `}
         >
           {/* NEW: scroll-to-bottom button placed just above the input area */}
