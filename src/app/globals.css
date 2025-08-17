@@ -199,7 +199,7 @@ pre code {
 }
 
 .neon-border {
-  border: 0px solid var(--neon-accent);;
+  border: 0px solid var(--neon-accent);
   box-shadow:
     0 0 16px var(--neon-accent),
     0 0 16px color-mix(in srgb, var(--neon-accent) 60%, transparent),
@@ -280,6 +280,62 @@ pre code {
 
 .custom-scrollbar:hover::-webkit-scrollbar-thumb {
   background: hsl(var(--foreground) / 0.4);
+}
+
+/* Sleek semi-transparent scrollbars for content and sidebar */
+.scrollbar-sleek {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--foreground) / 0.25) transparent;
+}
+.scrollbar-sleek::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scrollbar-sleek::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-sleek::-webkit-scrollbar-thumb {
+  background: hsl(var(--foreground) / 0.25);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.scrollbar-sleek:hover::-webkit-scrollbar-thumb {
+  background: hsl(var(--foreground) / 0.35);
+}
+.scrollbar-sleek::-webkit-scrollbar-corner {
+  background: transparent;
+}
+/* Hide scrollbar buttons (arrow heads) */
+.scrollbar-sleek::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* Sidebar variant: a touch thinner, keyed to sidebar foreground */
+.scrollbar-sleek--sidebar {
+  scrollbar-width: thin;
+  scrollbar-color: oklch(from var(--sidebar-foreground) l c h / 0.25) transparent;
+}
+.scrollbar-sleek--sidebar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-sleek--sidebar::-webkit-scrollbar-thumb {
+  background: oklch(from var(--sidebar-foreground) l c h / 0.22);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.scrollbar-sleek--sidebar:hover::-webkit-scrollbar-thumb {
+  background: oklch(from var(--sidebar-foreground) l c h / 0.34);
+}
+/* Hide scrollbar buttons (arrow heads) */
+.scrollbar-sleek--sidebar::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 /* Neon background utility */

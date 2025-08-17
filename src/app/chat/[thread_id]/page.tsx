@@ -145,6 +145,7 @@ export default function Home() {
 
       // after scroll completes, make it fully visible
       node.style.opacity = "1";
+      setShowScrollToBottom(false);
     }, 100);
 
     return () => {
@@ -152,17 +153,29 @@ export default function Home() {
     };
   }, [scrollDown]);
 
-  // ADD: track scroll position to toggle button
+  // ADD: track scroll position to toggle button with rAF throttle and tolerance
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    const handle = () => {
+    let raf = 0;
+    const evaluate = () => {
       const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
-      setShowScrollToBottom(distance > 64);
+      const nearBottom = distance <= 24; // tolerance to avoid flicker
+      setShowScrollToBottom(!nearBottom);
     };
-    el.addEventListener("scroll", handle, { passive: true });
-    handle();
-    return () => el.removeEventListener("scroll", handle);
+    const onScroll = () => {
+      if (raf) cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(evaluate);
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    evaluate();
+    const onResize = () => evaluate();
+    window.addEventListener("resize", onResize);
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onResize);
+      if (raf) cancelAnimationFrame(raf);
+    };
   }, [normalizedThreadId]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) =>
@@ -190,6 +203,15 @@ export default function Home() {
     },
     setScrollDown,
   });
+
+  // Re-evaluate when content size changes
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const nearBottom = distance <= 24;
+    setShowScrollToBottom(!nearBottom);
+  }, [messages.length, submissionLoading, placeholderHeight]);
 
   const handleSubmit = () => {
     if (!input.trim()) return;
@@ -250,6 +272,7 @@ export default function Home() {
     const el = scrollRef.current;
     if (!el) return;
     el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    setShowScrollToBottom(false);
   }, [submissionLoading]);
 
   // After first animation plays once, disable further animations
@@ -276,7 +299,7 @@ export default function Home() {
   return (
     <div key={normalizedThreadId} className="flex h-svh w-full ">
       <div className="flex flex-col w-full">
-        <div ref={scrollRef} className="flex-1 overflow-y-auto relative">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto relative scrollbar-sleek">
           {/* REMOVED old scroll-to-bottom button inside scroll area */}
           <form
             onSubmit={(e) => {
@@ -327,8 +350,10 @@ export default function Home() {
               aria-label="Scroll to bottom"
               onClick={() => {
                 const el = scrollRef.current;
-                if (el)
+                if (el) {
                   el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+                  setShowScrollToBottom(false);
+                }
               }}
             >
               <ArrowDown className="h-4 w-4" />
