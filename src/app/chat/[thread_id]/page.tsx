@@ -297,7 +297,7 @@ export default function Home() {
   }
 
   return (
-    <div key={normalizedThreadId} className="flex h-svh w-full ">
+    <div key={normalizedThreadId} className="flex h-svh w-full overflow-hidden">
       <div className="flex flex-col w-full">
         <div ref={scrollRef} className="flex-1 overflow-y-auto relative scrollbar-sleek">
           {/* REMOVED old scroll-to-bottom button inside scroll area */}
@@ -306,7 +306,7 @@ export default function Home() {
               e.preventDefault();
               handleSubmit();
             }}
-            className="flex flex-col w-full max-w-[800px] mx-auto h-full "
+            className="flex flex-col w-full max-w-[800px] mx-auto h-screen "
           >
             {messages.length > 0 && (
               <div ref={messagesRef}>
@@ -337,8 +337,8 @@ export default function Home() {
         {/* Fixed input container at the bottom */}
         <div
           className={`sticky ${
-            messages.length > 0 ? "bottom-2" : "bottom-[50%]"
-          } bg-background/50 backdrop-blur-md relative pb-[env(safe-area-inset-bottom)]`}
+            messages.length > 0 ? "bottom-8" : "bottom-[50%]"
+          } bg-background/50 backdrop-blur-md relative pb-[env(safe-area-inset-bottom)] mx-2`}
         >
           {/* NEW: scroll-to-bottom button placed just above the input area */}
           {showScrollToBottom && (

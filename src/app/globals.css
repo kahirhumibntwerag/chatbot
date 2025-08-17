@@ -292,13 +292,16 @@ pre code {
   height: 8px;
 }
 .scrollbar-sleek::-webkit-scrollbar-track {
-  background: transparent;
+  background-color: black;
 }
 .scrollbar-sleek::-webkit-scrollbar-thumb {
   background: hsl(var(--foreground) / 0.25);
   border-radius: 999px;
   border: 2px solid transparent;
   background-clip: padding-box;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  box-shadow: inset 0 0 0 1px hsl(var(--background) / 0.25);
 }
 .scrollbar-sleek:hover::-webkit-scrollbar-thumb {
   background: hsl(var(--foreground) / 0.35);
@@ -322,11 +325,17 @@ pre code {
   width: 6px;
   height: 6px;
 }
+.scrollbar-sleek--sidebar::-webkit-scrollbar-track {
+  display: none;
+}
 .scrollbar-sleek--sidebar::-webkit-scrollbar-thumb {
   background: oklch(from var(--sidebar-foreground) l c h / 0.22);
   border-radius: 999px;
   border: 2px solid transparent;
   background-clip: padding-box;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  box-shadow: inset 0 0 0 1px oklch(from var(--sidebar) l c h / 0.2);
 }
 .scrollbar-sleek--sidebar:hover::-webkit-scrollbar-thumb {
   background: oklch(from var(--sidebar-foreground) l c h / 0.34);
@@ -418,15 +427,7 @@ pre code {
   background: radial-gradient(circle at 30% 30%, #1a1f3d 0%, #05060d 70%);
 }
 
-/* Hide scrollbars globally */
-html, body {
-  -ms-overflow-style: none; /* IE/Edge */
-  scrollbar-width: none;    /* Firefox */
-}
-html::-webkit-scrollbar,
-body::-webkit-scrollbar {
-  display: none;            /* Chrome/Safari */
-}
+
 
 /* Viewport-safe height utilities for mobile browsers */
 .h-svh { height: 100svh; }
@@ -492,4 +493,14 @@ body::-webkit-scrollbar {
     0 0 8px color-mix(in srgb, var(--neon-accent) 60%, transparent),
     0 0 16px color-mix(in srgb, var(--neon-accent) 40%, transparent);
   pointer-events: none;
+}
+
+/* Hide scrollbars globally */
+html, body {
+  -ms-overflow-style: none; /* IE/Edge */
+  scrollbar-width: none;    /* Firefox */
+}
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none;            /* Chrome/Safari */
 }
