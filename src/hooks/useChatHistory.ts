@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type Dispatch, type SetStateAction } from "react";
 import { API_BASE_URL } from "@/lib/apiConfig";
 
 interface ChatMessage {
@@ -53,7 +53,9 @@ const chatCache: Map<string, Chat> = typeof window !== "undefined"
   ? (window as any).__chatCache || ((window as any).__chatCache = new Map())
   : new Map();
 
-export const useChatHistory = (thread_id: string) => {
+export const useChatHistory = (
+  thread_id: string
+): [ChatMessage[], Dispatch<SetStateAction<ChatMessage[]>>] => {
   const [messages, setLocalMessages] = useState<ChatMessage[]>([]);
   const fetchedRef = useRef(false);
 
@@ -108,7 +110,7 @@ export const useChatHistory = (thread_id: string) => {
 
   // Setter
   const setMessages = (
-    updater: React.SetStateAction<ChatMessage[]>
+    updater: SetStateAction<ChatMessage[]>
   ) => {
     setLocalMessages((prev) => {
       const next =
@@ -147,5 +149,5 @@ export const useChatHistory = (thread_id: string) => {
     });
   };
 
-    return [messages, setMessages];
+    return [messages, setMessages] as [ChatMessage[], Dispatch<SetStateAction<ChatMessage[]>>];
   }

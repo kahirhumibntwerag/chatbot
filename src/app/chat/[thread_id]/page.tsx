@@ -258,7 +258,7 @@ export default function Home() {
   }, [router]);
 
   return (
-    <div className="flex h-screen w-full ">
+    <div className="flex h-svh w-full ">
       <div className="flex flex-col w-full">
         <div ref={scrollRef} className="flex-1 overflow-y-auto relative">
           {/* REMOVED old scroll-to-bottom button inside scroll area */}
@@ -284,7 +284,7 @@ export default function Home() {
         <div
           className={`sticky ${
             messages.length > 0 ? "bottom-2" : "bottom-[50%]"
-          } bg-background/50 backdrop-blur-md relative`}
+          } bg-background/50 backdrop-blur-md relative pb-[env(safe-area-inset-bottom)]`}
         >
           {/* NEW: scroll-to-bottom button placed just above the input area */}
           {showScrollToBottom && (
@@ -292,7 +292,7 @@ export default function Home() {
               type="button"
               variant="secondary"
               size="icon"
-              className="absolute right-[50%] -top-3 translate-y-[-100%] rounded-full shadow-lg"
+              className="absolute right-4 sm:right-1/2 -top-3 sm:translate-x-1/2 translate-y-[-100%] rounded-full shadow-lg"
               aria-label="Scroll to bottom"
               onClick={() => {
                 const el = scrollRef.current;
@@ -320,15 +320,15 @@ export default function Home() {
                 className="w-full resize-none p-2"
               />
               <div
-                className={`flex items-center justify-between gap-2 w-full flex-1/2`}
+                className={`flex  items-center justify-between gap-x-2 gap-y-2 w-full`}
               >
-                <div className="min-w-[180px] flex gap-2">
+                <div className="min-w-0 flex  gap-2 w-full sm:w-auto">
                   <Select
                     value={storeName || undefined}
                     onValueChange={handleStoreSelect}
                   >
                     <SelectTrigger
-                      className={`h-9 rounded-2xl bg-accent/70 backdrop-blur-sm border px-2 data-[placeholder]:opacity-60 ${
+                      className={`h-9 rounded-2xl bg-accent/70 backdrop-blur-sm border px-2 data-[placeholder]:opacity-60 w-full sm:w-auto ${
                         storeName ? "" : "hidden"
                       }`}
                     >
@@ -349,7 +349,7 @@ export default function Home() {
                     value={model || undefined}
                     onValueChange={(val) => setModel(val)}
                   >
-                    <SelectTrigger className="h-9 rounded-2xl bg-accent/70 backdrop-blur-sm border px-2 data-[placeholder]:opacity-60">
+                    <SelectTrigger className="h-9 rounded-2xl bg-accent/70 backdrop-blur-sm border px-2 data-[placeholder]:opacity-60 w-full sm:w-auto">
                       <SelectValue placeholder="Model" />
                     </SelectTrigger>
                     <SelectContent>
@@ -380,7 +380,7 @@ export default function Home() {
                  
                 </div>
 
-                <div className="flex items-center justify-center gap-2">
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button

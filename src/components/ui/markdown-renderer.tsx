@@ -14,7 +14,7 @@ interface MarkdownRendererProps {
 
 export default function MarkdownRenderer({ children }: MarkdownRendererProps) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 markdown-body">
       <Markdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeRaw]}
@@ -60,13 +60,25 @@ const HighlightedPre = React.memo(
 
     if (!html) {
       return (
-        <pre {...props}>
+        <pre
+          {...props}
+          className={cn(
+            props.className,
+            "max-w-full whitespace-pre-wrap break-words overflow-x-auto"
+          )}
+        >
           <code>{children}</code>
         </pre>
       )
     }
 
-    return <div {...props} dangerouslySetInnerHTML={{ __html: html }} />
+    return (
+      <div
+        {...props}
+        className={cn("codeblock-container max-w-full", props.className)}
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
+    )
   }
 )
 HighlightedPre.displayName = "HighlightedPre"

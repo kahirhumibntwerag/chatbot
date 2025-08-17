@@ -371,3 +371,32 @@ html::-webkit-scrollbar,
 body::-webkit-scrollbar {
   display: none;            /* Chrome/Safari */
 }
+
+/* Viewport-safe height utilities for mobile browsers */
+.h-svh { height: 100svh; }
+.min-h-svh { min-height: 100svh; }
+
+/* Markdown responsiveness */
+.markdown-body {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Ensure code blocks and pre elements wrap and can scroll horizontally if needed */
+.markdown-body pre,
+.markdown-body code,
+.codeblock-container pre,
+.codeblock-container code {
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+/* Shiki output often uses .shiki or pre>code blocks; ensure wrapping */
+.shiki {
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-width: 100%;
+}

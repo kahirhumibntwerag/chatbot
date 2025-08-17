@@ -19,8 +19,10 @@ export default function ChatLanding() {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarTrigger />
-      <div className="flex h-screen items-center justify-center w-full">
+      <div className="fixed top-2 left-2 z-50 md:relative md:top-0 md:left-0 md:z-auto">
+        <SidebarTrigger />
+      </div>
+      <div className="flex h-svh items-center justify-center w-full pb-[env(safe-area-inset-bottom)]">
         <div className="flex items-center gap-2">
           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-black"></div>
           <span>Creating new chat...</span>
