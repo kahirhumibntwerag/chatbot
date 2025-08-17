@@ -359,7 +359,7 @@ export default function Home() {
               <ArrowDown className="h-4 w-4" />
             </Button>
           )}
-          <div className="max-w-[1200px] mx-auto px-4 py-2 sm:w-full ">
+          <div className="max-w-[800px] mx-auto px-4 py-2 sm:w-full ">
             <motion.div
               className={`flex flex-col w-full p-2
     shadow-xl bg-background/80 backdrop-blur-sm neon-border
