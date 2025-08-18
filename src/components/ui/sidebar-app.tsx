@@ -41,8 +41,32 @@ type Chat = {
   timestamp: number; // last modified
 };
 
-declare global {
-  interface Window { __chatThreads?: string[] }
+//
+
+// Persist last-modified timestamps locally to preserve ordering across reloads
+const LOCAL_TS_KEY = "chatLastModified";
+function loadLocalTimestamps(): Record<string, number> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = localStorage.getItem(LOCAL_TS_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return {};
+    return Object.fromEntries(
+      Object.entries(parsed as Record<string, unknown>).filter(([, v]) => typeof v === "number")
+    ) as Record<string, number>;
+  } catch {
+    return {};
+  }
+}
+function saveLocalTimestamp(id: string, ts: number) {
+  if (typeof window === "undefined") return;
+  try {
+    const current = loadLocalTimestamps();
+    const nextTs = Math.max(Number(current[id] || 0), Number(ts) || 0);
+    current[id] = nextTs;
+    localStorage.setItem(LOCAL_TS_KEY, JSON.stringify(current));
+  } catch {}
 }
 
 function isChatMessageArray(v: unknown): v is ChatMessage[] {
@@ -72,8 +96,8 @@ function toChat(row: { thread_id: string; messages: ChatMessage[]; timestamp?: n
     id: row.thread_id,
     title,
     messages: row.messages,
-    // If backend provides a timestamp use it, else now
-    timestamp: typeof row.timestamp === "number" ? row.timestamp : Date.now(),
+    // If backend provides a timestamp use it, else 0 (preserve server order)
+    timestamp: typeof row.timestamp === "number" ? row.timestamp : 0,
   };
 }
 
@@ -105,10 +129,21 @@ async function fetchChats(): Promise<Chat[]> {
   if (!res.ok) return [];
   const raw = await res.json();
   if (!Array.isArray(raw)) return [];
-  const chats = raw.filter(isRawCheckpoint).filter(r => r.messages.length > 0).map(toChat);
-  // Initial ordering: newest (largest timestamp) first
-  chats.sort((a, b) => a.timestamp - b.timestamp);
-  return chats;
+  const localTs = loadLocalTimestamps();
+  const mapped = raw
+    .filter(isRawCheckpoint)
+    .filter(r => r.messages.length > 0)
+    .map((row, idx) => {
+      const base = toChat(row);
+      const mergedTs = Math.max(base.timestamp || 0, localTs[base.id] || 0);
+      return { chat: { ...base, timestamp: mergedTs }, idx };
+    });
+
+  const hasTimestamps = mapped.some(({ chat }) => chat.timestamp > 0);
+  if (hasTimestamps) {
+    mapped.sort((a, b) => (b.chat.timestamp - a.chat.timestamp) || (a.idx - b.idx));
+  }
+  return mapped.map(m => m.chat);
 }
 
 // removed standalone logout in favor of component-scoped handler with loading state
@@ -172,6 +207,7 @@ export function AppSidebar() {
           messages,
           timestamp: now
         };
+        saveLocalTimestamp(id, now);
         return [created, ...prev];
       }
       const existing = prev[idx];
@@ -196,6 +232,7 @@ export function AppSidebar() {
       };
 
       if (newUserMsg) {
+        saveLocalTimestamp(id, now);
         // Move to front
         const rest = prev.filter(c => c.id !== id);
         return [updated, ...rest];
@@ -217,13 +254,7 @@ export function AppSidebar() {
     return () => window.removeEventListener("chatUpdated", handler);
   }, [updateChatMessages]);
 
-  // Expose thread ids globally (if used elsewhere)
-  useEffect(() => {
-    try {
-      window.__chatThreads = chats.map(c => c.id);
-      window.dispatchEvent(new Event("chatThreadsUpdated"));
-    } catch {}
-  }, [chats]);
+  //
 
   // Group (already ordered newest-first)
   const { today, last7Days, older } = useMemo(() => groupChatsByDate(chats), [chats]);
@@ -348,6 +379,7 @@ export function AppSidebar() {
         messages: [],
         timestamp: Date.now(),
       };
+      saveLocalTimestamp(id, newChat.timestamp);
       return [newChat, ...prev];
     });
     router.push(`/chat/${id}`);
@@ -382,7 +414,7 @@ function ChatSection({
               }`}
             >
               <MessageCircle className="mr-2 h-4 w-4" />
-              <span className="truncate w-full">{chat.title}</span>
+                <span className="truncate w-fit">{chat.title}</span>
             </Button>
           </Link>
         ))}

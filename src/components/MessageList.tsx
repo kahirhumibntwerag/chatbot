@@ -1,3 +1,4 @@
+'use client'
 import React, { memo, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import MarkdownRenderer from "@/components/ui/markdown-renderer";
