@@ -33,7 +33,7 @@ const api = (path: string) =>
   `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
 
 // Types
-type ChatMessage = { text: string; sender: "user" | "model" };
+type ChatMessage = { text: string; sender: "user" | "model" | "tool" };
 type Chat = {
   id: string;
   title: string;
@@ -49,7 +49,7 @@ function isChatMessageArray(v: unknown): v is ChatMessage[] {
       m &&
       typeof m === "object" &&
       typeof (m as any).text === "string" &&
-      ((m as any).sender === "user" || (m as any).sender === "model")
+      ((m as any).sender === "user" || (m as any).sender === "model" || (m as any).sender === "tool")
   );
 }
 function isRawCheckpoint(v: unknown): v is { thread_id: string; messages: ChatMessage[]; timestamp?: number | string } {

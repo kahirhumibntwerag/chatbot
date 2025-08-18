@@ -3,7 +3,7 @@ import { API_BASE_URL } from "@/lib/apiConfig";
 
 interface ChatMessage {
   text: string;
-  sender: "user" | "model";
+  sender: "user" | "model" | "tool";
 }
 
 interface Chat {

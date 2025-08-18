@@ -4,7 +4,12 @@ import { toast } from "sonner";
 import { API_BASE_URL } from "@/lib/apiConfig";
 
 // Define local message type (align with actual usage)
-export type ChatMessage = { sender: "user" | "model"; text: string };
+export type ChatMessage = {
+  sender: "user" | "model" | "tool";
+  text: string;
+  status?: "running" | "done";
+  toolName?: string;
+};
 
 // Add toolNames to opts and destructure it
 export function useChatSubmission(opts: {
@@ -111,14 +116,34 @@ export function useChatSubmission(opts: {
           eventSource.addEventListener("tool_start", (ev: MessageEvent) => {
             try {
               const parsed = JSON.parse(ev.data || "{}") as { name?: string };
-              toast.message(`Using tool: ${parsed.name ?? "unknown"}`);
+              const name = (parsed.name ?? "unknown").toString();
+              toast.message(`Using tool: ${name}`);
+              onMessageUpdate(prev => [
+                ...prev,
+                { sender: "tool", text: `Calling tool: ${name}`, status: "running", toolName: name },
+              ]);
             } catch {}
           });
 
           eventSource.addEventListener("tool_end", (ev: MessageEvent) => {
             try {
               const parsed = JSON.parse(ev.data || "{}") as { name?: string };
-              toast.success(`Finished tool: ${parsed.name ?? "unknown"}`);
+              const name = (parsed.name ?? "unknown").toString();
+              toast.success(`Finished tool: ${name}`);
+              onMessageUpdate(prev => {
+                const copy = [...prev];
+                // Find last running tool message with same name
+                for (let i = copy.length - 1; i >= 0; i--) {
+                  const m = copy[i] as ChatMessage;
+                  if (m.sender === "tool" && m.status === "running" && m.toolName === name) {
+                    copy[i] = { sender: "tool", text: `Finished tool: ${name}`, status: "done", toolName: name };
+                    return copy;
+                  }
+                }
+                // Fallback: append if not found
+                copy.push({ sender: "tool", text: `Finished tool: ${name}`, status: "done", toolName: name });
+                return copy;
+              });
             } catch {}
           });
 

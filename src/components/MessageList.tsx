@@ -38,13 +38,28 @@ const MessageListComponent: React.FC<MessageListProps> = ({
         >
           <Card
             className={`mb-2 w-fit max-w-[100%] p-4 border-none shadow-none ${
-              message.sender === "model"
-                ? "bg-transparent text-foreground"
-                : "bg-primary text-primary-foreground"
+              message.sender === "user"
+                ? "bg-primary text-primary-foreground"
+                : message.sender === "tool"
+                ? "bg-muted text-muted-foreground"
+                : "bg-transparent text-foreground"
             }`}
           >
             <CardContent className="p-3 break-words whitespace-pre-line">
-              <MarkdownRenderer>{message.text}</MarkdownRenderer>
+              {message.sender === "tool" && (message as any).status === "running" ? (
+                <div className="flex items-center gap-2">
+                  <span className="inline-block">
+                    <MarkdownRenderer>{message.text}</MarkdownRenderer>
+                  </span>
+                  <span className="inline-flex gap-1 ml-1" aria-label="running">
+                    <span className="w-1.5 h-1.5 rounded-full bg-current animate-bounce [animation-delay:-0.2s]"></span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-current animate-bounce [animation-delay:-0.1s]"></span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-current animate-bounce"></span>
+                  </span>
+                </div>
+              ) : (
+                <MarkdownRenderer>{message.text}</MarkdownRenderer>
+              )}
             </CardContent>
           </Card>
         </div>

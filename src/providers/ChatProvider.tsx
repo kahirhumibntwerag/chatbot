@@ -1,7 +1,7 @@
 "use client";
 import React, { createContext, useContext, useState, ReactNode } from "react";
 
-type ChatMessage = { sender: "user" | "model"; text: string };
+type ChatMessage = { sender: "user" | "model" | "tool"; text: string };
 interface Chat { id: string; messages: ChatMessage[]; title: string; timestamp: number }
 
 interface ChatContextValue {
