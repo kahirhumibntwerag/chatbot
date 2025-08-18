@@ -87,6 +87,10 @@ export default function Home() {
   ) as React.RefObject<HTMLTextAreaElement>;
   const messagesRef = useRef<HTMLDivElement>(null);
   const [placeholderHeight, setPlaceholderHeight] = useState(0);
+  // Tail-window rendering: only render last N initially, load older on scroll up
+  const WINDOW_SIZE = 50;
+  const LOAD_BATCH = 50;
+  const [visibleStart, setVisibleStart] = useState(0);
 
   // NEW: Visibility state for thread switch
   const [isThreadVisible, setIsThreadVisible] = useState(false);
@@ -152,6 +156,11 @@ export default function Home() {
       clearTimeout(scrollTimeout);
     };
   }, [scrollDown]);
+
+  // Initialize or update the visible window when thread or messages change
+  useEffect(() => {
+    setVisibleStart(Math.max(0, messages.length - WINDOW_SIZE));
+  }, [normalizedThreadId, messages.length]);
 
   // ADD: track scroll position to toggle button with rAF throttle and tolerance
   useEffect(() => {
@@ -326,11 +335,16 @@ export default function Home() {
             {messages.length > 0 && (
               <div ref={messagesRef}>
                 <MessageList
-                  messages={messages}
+                  messages={messages.slice(visibleStart)}
                   loading={submissionLoading}
                   animatedFirstBatch={animateFirstBatch}
                   isThreadVisible={isThreadVisible}
                   scrollParentRef={scrollRef as React.RefObject<HTMLElement>}
+                  firstItemIndex={visibleStart}
+                  onStartReached={() => {
+                    if (visibleStart <= 0) return;
+                    setVisibleStart((prev) => Math.max(0, prev - LOAD_BATCH));
+                  }}
                 />
               </div>
             )}

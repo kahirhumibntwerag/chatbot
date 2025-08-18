@@ -16,6 +16,11 @@ interface MessageListProps {
   isThreadVisible: boolean;
   // Optional: provide the external scroll container to avoid nested scrolls
   scrollParentRef?: React.RefObject<HTMLElement | null>;
+  // If provided, indicates the absolute index of the first item in `messages`
+  // used for tail-window rendering (only render the last N messages initially)
+  firstItemIndex?: number;
+  // Called when the user scrolls to the start (top) to request more items above
+  onStartReached?: () => void;
 }
 
 const MessageListComponent: React.FC<MessageListProps> = ({
@@ -24,6 +29,8 @@ const MessageListComponent: React.FC<MessageListProps> = ({
   animatedFirstBatch,
   isThreadVisible,
   scrollParentRef,
+  firstItemIndex,
+  onStartReached,
 }) => {
   const prepared = usePreparedMessages(messages);
 
@@ -36,6 +43,8 @@ const MessageListComponent: React.FC<MessageListProps> = ({
       <Virtuoso
         data={prepared}
         customScrollParent={scrollParentRef?.current || undefined}
+        firstItemIndex={typeof firstItemIndex === "number" ? firstItemIndex : undefined}
+        startReached={onStartReached}
         itemContent={(index, message) => (
           <div
             className={`flex w-full ${
