@@ -38,7 +38,7 @@ export function AuthProvider({ children, requireAuth = false }: { children: Reac
 		setAuthError(null);
 		try {
 			const token = getToken();
-			const res = await fetch(`${API_BASE_URL}/users/me`, {
+			const res = await fetch(`${API_BASE_URL}/users/me/`, {
 				credentials: "include",
 				headers: {
 					...(token ? { Authorization: `Bearer ${token}` } : {}),
