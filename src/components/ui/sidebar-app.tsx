@@ -43,32 +43,6 @@ type Chat = {
 
 //
 
-// Persist last-modified timestamps locally to preserve ordering across reloads
-const LOCAL_TS_KEY = "chatLastModified";
-function loadLocalTimestamps(): Record<string, number> {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = localStorage.getItem(LOCAL_TS_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object") return {};
-    return Object.fromEntries(
-      Object.entries(parsed as Record<string, unknown>).filter(([, v]) => typeof v === "number")
-    ) as Record<string, number>;
-  } catch {
-    return {};
-  }
-}
-function saveLocalTimestamp(id: string, ts: number) {
-  if (typeof window === "undefined") return;
-  try {
-    const current = loadLocalTimestamps();
-    const nextTs = Math.max(Number(current[id] || 0), Number(ts) || 0);
-    current[id] = nextTs;
-    localStorage.setItem(LOCAL_TS_KEY, JSON.stringify(current));
-  } catch {}
-}
-
 function isChatMessageArray(v: unknown): v is ChatMessage[] {
   return Array.isArray(v) && v.every(
     (m) =>
@@ -78,7 +52,7 @@ function isChatMessageArray(v: unknown): v is ChatMessage[] {
       ((m as any).sender === "user" || (m as any).sender === "model")
   );
 }
-function isRawCheckpoint(v: unknown): v is { thread_id: string; messages: ChatMessage[]; timestamp?: number } {
+function isRawCheckpoint(v: unknown): v is { thread_id: string; messages: ChatMessage[]; timestamp?: number | string } {
   return (
     !!v &&
     typeof v === "object" &&
@@ -87,7 +61,16 @@ function isRawCheckpoint(v: unknown): v is { thread_id: string; messages: ChatMe
   );
 }
 
-function toChat(row: { thread_id: string; messages: ChatMessage[]; timestamp?: number }): Chat {
+function normalizeTimestamp(ts: unknown): number {
+  if (typeof ts === "number" && Number.isFinite(ts)) return ts;
+  if (typeof ts === "string") {
+    const ms = Date.parse(ts);
+    return Number.isFinite(ms) ? ms : 0;
+  }
+  return 0;
+}
+
+function toChat(row: { thread_id: string; messages: ChatMessage[]; timestamp?: number | string }): Chat {
   const firstUser = row.messages.find((m) => m.sender === "user");
   const title = firstUser
     ? firstUser.text.slice(0, 30) + (firstUser.text.length > 30 ? "..." : "")
@@ -96,8 +79,8 @@ function toChat(row: { thread_id: string; messages: ChatMessage[]; timestamp?: n
     id: row.thread_id,
     title,
     messages: row.messages,
-    // If backend provides a timestamp use it, else 0 (preserve server order)
-    timestamp: typeof row.timestamp === "number" ? row.timestamp : 0,
+    // Use server-provided timestamp (number or ISO string), fallback to 0
+    timestamp: normalizeTimestamp(row.timestamp),
   };
 }
 
@@ -129,15 +112,10 @@ async function fetchChats(): Promise<Chat[]> {
   if (!res.ok) return [];
   const raw = await res.json();
   if (!Array.isArray(raw)) return [];
-  const localTs = loadLocalTimestamps();
   const mapped = raw
     .filter(isRawCheckpoint)
     .filter(r => r.messages.length > 0)
-    .map((row, idx) => {
-      const base = toChat(row);
-      const mergedTs = Math.max(base.timestamp || 0, localTs[base.id] || 0);
-      return { chat: { ...base, timestamp: mergedTs }, idx };
-    });
+    .map((row, idx) => ({ chat: toChat(row), idx }));
 
   const hasTimestamps = mapped.some(({ chat }) => chat.timestamp > 0);
   if (hasTimestamps) {
@@ -196,6 +174,7 @@ export function AppSidebar() {
       const idx = prev.findIndex(c => c.id === id);
       const now = Date.now();
       if (idx === -1) {
+        if (!messages || messages.length === 0) return prev;
         // New thread from elsewhere
         const created: Chat = {
           id,
@@ -207,7 +186,6 @@ export function AppSidebar() {
           messages,
           timestamp: now
         };
-        saveLocalTimestamp(id, now);
         return [created, ...prev];
       }
       const existing = prev[idx];
@@ -232,7 +210,6 @@ export function AppSidebar() {
       };
 
       if (newUserMsg) {
-        saveLocalTimestamp(id, now);
         // Move to front
         const rest = prev.filter(c => c.id !== id);
         return [updated, ...rest];
@@ -371,17 +348,6 @@ export function AppSidebar() {
 
   function startNewChat() {
     const id = crypto.randomUUID?.() || `chat_${Date.now()}`;
-    setChats(prev => {
-      if (prev.some(c => c.id === id)) return prev;
-      const newChat: Chat = {
-        id,
-        title: "New Chat",
-        messages: [],
-        timestamp: Date.now(),
-      };
-      saveLocalTimestamp(id, newChat.timestamp);
-      return [newChat, ...prev];
-    });
     router.push(`/chat/${id}`);
   }
 }
