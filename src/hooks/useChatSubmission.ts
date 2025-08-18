@@ -83,9 +83,37 @@ export function useChatSubmission(opts: {
           );
 
             let messageBuffer = "";
+            let flushTimeout: number | null = null;
+            const flushNow = () => {
+              if (messageBuffer === "") return;
+              const content = messageBuffer;
+              onMessageUpdate(prev => {
+                const copy = [...prev];
+                const last = copy[copy.length - 1];
+                if (last?.sender === "model") {
+                  copy[copy.length - 1] = { ...last, text: content } as ChatMessage;
+                } else {
+                  copy.push({ text: content, sender: "model" });
+                }
+                return copy;
+              });
+            };
+            const scheduleFlush = () => {
+              if (flushTimeout != null) return;
+              flushTimeout = window.setTimeout(() => {
+                flushTimeout = null;
+                flushNow();
+              }, 33); // ~30fps
+            };
 
           eventSource.addEventListener("model_start", () => {
             setIsLoading(true);
+            // reset buffers
+            messageBuffer = "";
+            if (flushTimeout != null) {
+              clearTimeout(flushTimeout);
+              flushTimeout = null;
+            }
             onMessageUpdate(prev => {
               const last = prev[prev.length - 1];
               if (last?.sender === "model") return prev;
@@ -98,16 +126,7 @@ export function useChatSubmission(opts: {
               const parsed = JSON.parse(ev.data || "{}") as { token?: string };
               if (!parsed.token) return;
               messageBuffer += parsed.token;
-              onMessageUpdate(prev => {
-                const copy = [...prev];
-                const last = copy[copy.length - 1];
-                if (last?.sender === "model") {
-                  copy[copy.length - 1] = { ...last, text: messageBuffer };
-                } else {
-                  copy.push({ text: messageBuffer, sender: "model" });
-                }
-                return copy;
-              });
+              scheduleFlush();
             } catch {
               /* swallow malformed token events */
             }
@@ -148,6 +167,12 @@ export function useChatSubmission(opts: {
           });
 
           eventSource.addEventListener("done", () => {
+            // Ensure last buffer is flushed once more
+            if (flushTimeout != null) {
+              clearTimeout(flushTimeout);
+              flushTimeout = null;
+            }
+            flushNow();
             eventSource?.close();
             setIsLoading(false);
           });

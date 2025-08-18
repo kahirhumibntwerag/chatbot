@@ -286,9 +286,24 @@ export default function Home() {
 
   // NEW: On thread change, render at opacity-0 then set to 100 next frame (no CSS transition)
   useEffect(() => {
-    setIsThreadVisible(false);
     const id = requestAnimationFrame(() => setIsThreadVisible(true));
     return () => cancelAnimationFrame(id);
+  }, [normalizedThreadId]);
+
+  // Preload last few images on thread change to reduce pop-in when user scrolls near bottom
+  useEffect(() => {
+    const container = messagesRef.current;
+    if (!container) return;
+    const imgs = Array.from(container.querySelectorAll("img")) as HTMLImageElement[];
+    if (!imgs.length) return;
+    const lastFew = imgs.slice(-6); // preload last 6 images
+    lastFew.forEach((img) => {
+      if (img.complete) return;
+      const src = img.getAttribute("src");
+      if (!src) return;
+      const pre = new window.Image();
+      pre.src = src;
+    });
   }, [normalizedThreadId]);
 
   // If auth is loading, render a minimal placeholder to avoid flicker
@@ -297,7 +312,7 @@ export default function Home() {
   }
 
   return (
-    <div key={normalizedThreadId} className="flex h-svh w-full">
+    <div className="flex h-svh w-full">
       <div className="flex flex-col w-full">
         <div ref={scrollRef} className="flex overflow-y-auto  relative scrollbar-sleek">
           {/* REMOVED old scroll-to-bottom button inside scroll area */}
@@ -315,6 +330,7 @@ export default function Home() {
                   loading={submissionLoading}
                   animatedFirstBatch={animateFirstBatch}
                   isThreadVisible={isThreadVisible}
+                  scrollParentRef={scrollRef as React.RefObject<HTMLElement>}
                 />
               </div>
             )}
