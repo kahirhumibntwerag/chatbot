@@ -361,7 +361,7 @@ export default function Home() {
           )}
           <div className="max-w-[800px] mx-auto px-4 py-2 sm:w-full ">
             <motion.div
-              className={`flex flex-col w-full p-2
+              className={`flex flex-col w-full sm:max-w-[800px] max-w-[600px] mx-auto p-2
     shadow-xl bg-background/80 backdrop-blur-sm neon-border
     hover:shadow-2xl transition-all duration-300`}
             >
@@ -375,9 +375,7 @@ export default function Home() {
                 disabled={isLoading}
                 className="w-full resize-none p-2"
               />
-              <div
-                className={`flex items-center justify-between gap-2 w-full`}
-              >
+              <div className="flex items-center gap-2 w-full justify-center sm:justify-between">
                 <div className="min-w-0 flex items-center gap-2 flex-wrap sm:w-auto">
                   <Select
                     value={storeName || undefined}

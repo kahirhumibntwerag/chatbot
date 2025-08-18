@@ -12,8 +12,10 @@ export default function ChatLayout({ children }: { children: React.ReactNode }) 
         <ChatSettingsProvider>
           <AppSidebar />
 
-              <SidebarTrigger />
+          <div className="relative w-full">
+            <SidebarTrigger className="absolute left-2 top-2 z-20 sm:left-4 sm:top-4" />
             {children}
+          </div>
         </ChatSettingsProvider>
       </AuthProvider>
     </SidebarProvider>
