@@ -84,20 +84,18 @@ function toChat(row: { thread_id: string; messages: ChatMessage[]; timestamp?: n
   };
 }
 
-// Group by recency (based on last modified timestamp)
+// Group chats into Today vs Older using local day boundary
 function groupChatsByDate(chats: Chat[]) {
-  const now = Date.now();
-  const oneDay = 24 * 60 * 60 * 1000;
-  const sevenDays = 7 * oneDay;
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const startMs = startOfToday.getTime();
   return chats.reduce(
     (acc, c) => {
-      const age = now - c.timestamp;
-      if (age < oneDay) acc.today.push(c);
-      else if (age < sevenDays) acc.last7Days.push(c);
+      if (c.timestamp >= startMs) acc.today.push(c);
       else acc.older.push(c);
       return acc;
     },
-    { today: [] as Chat[], last7Days: [] as Chat[], older: [] as Chat[] }
+    { today: [] as Chat[], older: [] as Chat[] }
   );
 }
 
@@ -234,7 +232,7 @@ export function AppSidebar() {
   //
 
   // Group (already ordered newest-first)
-  const { today, last7Days, older } = useMemo(() => groupChatsByDate(chats), [chats]);
+  const { today, older } = useMemo(() => groupChatsByDate(chats), [chats]);
 
   const storesState = storesLoading ? "Loading..." : storesError ? "Failed" : null;
   const chatsState = chatsLoading ? "Loading..." : chatsError ? "Failed" : null;
@@ -297,13 +295,6 @@ export function AppSidebar() {
                 <ChatSection
                   label="Today"
                   chats={today}
-                  activeChatId={activeChatId}
-                />
-              )}
-              {last7Days.length > 0 && (
-                <ChatSection
-                  label="Last 7 Days"
-                  chats={last7Days}
                   activeChatId={activeChatId}
                 />
               )}
