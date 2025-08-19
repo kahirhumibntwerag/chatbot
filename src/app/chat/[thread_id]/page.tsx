@@ -437,12 +437,12 @@ export default function Home() {
                 </div>
               )}
               <div className="flex items-center gap-2 w-full justify-center sm:justify-between">
-                <div className="min-w-0 flex items-center gap-2 flex-wrap sm:w-auto">
+                <div className="min-w-0 flex items-center gap-2 flex-wrap ">
                   <Select
                     value={model || undefined}
                     onValueChange={(val) => setModel(val)}
                   >
-                    <SelectTrigger className="h-9 rounded-2xl bg-accent/70 backdrop-blur-sm border px-2 data-[placeholder]:opacity-60 w-full sm:w-auto">
+                    <SelectTrigger className="h-9 rounded-2xl bg-accent/70 backdrop-blur-sm border px-2 data-[placeholder]:opacity-60 w-fit ">
                       <SelectValue placeholder="Model" />
                     </SelectTrigger>
                     <SelectContent>
