@@ -6,7 +6,11 @@ import { Virtuoso } from "react-virtuoso";
 
 // Preprocess each message once (e.g., could cache markdown parsing result)
 function usePreparedMessages(messages: { sender: string; text: string }[]) {
-  return useMemo(() => messages, [messages]);
+  // Filter out tool messages so they are not rendered
+  return useMemo(
+    () => messages.filter((m: any) => m?.sender !== "tool"),
+    [messages]
+  );
 }
 
 interface MessageListProps {
