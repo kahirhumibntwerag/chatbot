@@ -26,6 +26,16 @@ import {
 import { ThemeToggle } from "./themeToggle";
 import Link from "next/link";
 import { useChatSettings } from "@/providers/ChatSettingsProvider";
+import { FileIcon, truncateFileName } from "@/components/ui/fileIcon";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 // Base URL (strip trailing slash)
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(/\/$/, "");
@@ -145,8 +155,72 @@ export function AppSidebar() {
     filesError,
     selectedFileNames,
     setSelectedFileNames,
+    refreshFiles,
   } = useChatSettings();
+  const [filesOpen, setFilesOpen] = useState(true);
   const [logoutLoading, setLogoutLoading] = useState(false);
+  const [hiddenFileIds, setHiddenFileIds] = useState<Set<number>>(new Set());
+
+  async function renameFile(fileId: number, oldName: string) {
+    const newName = window.prompt("Rename file", oldName) ?? "";
+    const trimmed = newName.trim();
+    if (!trimmed || trimmed === oldName) return;
+    try {
+      const tokenMatch = document.cookie.match(/(?:^|;\s*)jwt=([^;]+)/);
+      const token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : null;
+      if (!token) throw new Error("Not authenticated");
+      const res = await fetch(api(`/files/${fileId}/rename?new_name=${encodeURIComponent(trimmed)}`), {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const msg = await res.text();
+        throw new Error(msg || `Failed to rename (${res.status})`);
+      }
+      setSelectedFileNames(prev => prev.map(n => (n === oldName ? trimmed : n)));
+      toast.success("Renamed");
+      // Optionally: dispatch a custom event to trigger a files refresh if provider listens
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Rename failed");
+    }
+  }
+
+  async function deleteFile(fileId: number, name: string) {
+    if (!window.confirm(`Delete ${name}? This cannot be undone.`)) return;
+    // Optimistic hide
+    setHiddenFileIds((prev) => {
+      const next = new Set(prev);
+      next.add(fileId);
+      return next;
+    });
+    try {
+      const tokenMatch = document.cookie.match(/(?:^|;\s*)jwt=([^;]+)/);
+      const token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : null;
+      if (!token) throw new Error("Not authenticated");
+      const res = await fetch(api(`/files/${fileId}`), {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const msg = await res.text();
+        throw new Error(msg || `Failed to delete (${res.status})`);
+      }
+      setSelectedFileNames(prev => prev.filter(n => n !== name));
+      toast.success("Deleted");
+      // Refresh list to reflect deletion from backend
+      try { await (refreshFiles as any)?.(); } catch {}
+    } catch (e) {
+      // Revert optimistic hide on failure
+      setHiddenFileIds((prev) => {
+        const next = new Set(prev);
+        next.delete(fileId);
+        return next;
+      });
+      toast.error(e instanceof Error ? e.message : "Delete failed");
+    }
+  }
 
   // Active chat id
   const activeChatId = useMemo(() => {
@@ -259,7 +333,7 @@ export function AppSidebar() {
 
       <SidebarContent>
         <SidebarGroup className="mb-4">
-          <Collapsible>
+          <Collapsible open={filesOpen} onOpenChange={setFilesOpen}>
             <CollapsibleTrigger className="flex w-full items-center justify-between p-2 hover:bg-accent rounded-lg">
               <div className="flex items-center">
                 <Database className="mr-2 h-4 w-4" />
@@ -268,34 +342,71 @@ export function AppSidebar() {
               <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <div className="pl-4 mt-1">
-                {filesState && (
-                  <div className="text-xs text-muted-foreground mb-1">
-                    {filesState}
-                  </div>
+              <AnimatePresence initial={false}>
+                {filesOpen && (
+                  <motion.div
+                    key="files-list"
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    className="pl-4 mt-1 overflow-hidden"
+                  >
+                    {filesState && (
+                      <div className="text-xs text-muted-foreground mb-1">
+                        {filesState}
+                      </div>
+                    )}
+                    {!filesState &&
+                      files.filter(f => !hiddenFileIds.has(f.id)).map((f) => {
+                        const active = selectedFileNames.includes(f.file_name);
+                        return (
+                          <motion.div
+                            key={f.id}
+                            className="flex items-center gap-2 mb-1"
+                            initial={{ opacity: 0, x: -6 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -6 }}
+                            transition={{ duration: 0.15 }}
+                          >
+                            <Button
+                              variant={active ? "secondary" : "ghost"}
+                              className="justify-start text-sm flex-1 min-w-0"
+                              onClick={() => {
+                                setSelectedFileNames((prev) =>
+                                  prev.includes(f.file_name)
+                                    ? prev.filter((n) => n !== f.file_name)
+                                    : [...prev, f.file_name]
+                                );
+                              }}
+                              title={f.file_name}
+                            >
+                              <span className="flex items-center gap-2 min-w-0">
+                                <FileIcon fileName={f.file_name} />
+                                <span className="truncate">{f.file_name}</span>
+                              </span>
+                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-7 w-7">
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-40">
+                                <DropdownMenuItem onClick={() => renameFile(f.id, f.file_name)}>
+                                  <Pencil className="mr-2 h-4 w-4" /> Rename
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => deleteFile(f.id, f.file_name)}>
+                                  <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </motion.div>
+                        );
+                      })}
+                  </motion.div>
                 )}
-                {!filesState &&
-                  files.map((f) => {
-                    const active = selectedFileNames.includes(f.file_name);
-                    return (
-                      <Button
-                        key={f.id}
-                        variant={active ? "secondary" : "ghost"}
-                        className="w-full justify-start mb-1 text-sm"
-                        onClick={() => {
-                          setSelectedFileNames((prev) =>
-                            prev.includes(f.file_name)
-                              ? prev.filter((n) => n !== f.file_name)
-                              : [...prev, f.file_name]
-                          );
-                        }}
-                        title={f.file_name}
-                      >
-                        <span className="truncate">{f.file_name}</span>
-                      </Button>
-                    );
-                  })}
-              </div>
+              </AnimatePresence>
             </CollapsibleContent>
           </Collapsible>
         </SidebarGroup>

@@ -504,3 +504,21 @@ html::-webkit-scrollbar,
 body::-webkit-scrollbar {
   display: none;            /* Chrome/Safari */
 }
+
+/* Radix Collapsible animations (using Radix-provided CSS vars) */
+@keyframes collapsible-down {
+  from { height: 0; opacity: 0; }
+  to { height: var(--radix-collapsible-content-height); opacity: 1; }
+}
+@keyframes collapsible-up {
+  from { height: var(--radix-collapsible-content-height); opacity: 1; }
+  to { height: 0; opacity: 0; }
+}
+
+/* Apply to any Radix CollapsibleContent by slot + state */
+[data-slot="collapsible-content"][data-state="open"] {
+  animation: collapsible-down 0.22s ease-out both;
+}
+[data-slot="collapsible-content"][data-state="closed"] {
+  animation: collapsible-up 0.18s ease-in both;
+}

@@ -46,6 +46,7 @@ import { Input } from "@/components/ui/input";
 import Image from "next/image"; // ADD
 import { Switch } from "@/components/ui/switch";
 import { useChatSettings } from "@/providers/ChatSettingsProvider";
+import { FileIcon, truncateFileName } from "@/components/ui/fileIcon";
 import { useAuth } from "@/providers/AuthProvider";
 
 export default function Home() {
@@ -412,19 +413,27 @@ export default function Home() {
               />
               {selectedFileNames.length > 0 && (
                 <div className="flex flex-wrap gap-2 px-2 pt-2 m-2">
-                  {selectedFileNames.map((name) => (
-                    <button
-                      key={name}
-                      type="button"
-                      className="px-2 py-1 rounded-full text-xs bg-primary text-primary-foreground"
-                      onClick={() =>
-                        setSelectedFileNames((prev) => prev.filter((n) => n !== name))
-                      }
-                      title={name}
-                    >
-                      {name}
-                    </button>
-                  ))}
+                  <AnimatePresence initial={false}>
+                    {selectedFileNames.map((name) => (
+                      <motion.button
+                        key={name}
+                        type="button"
+                        layout
+                        initial={{ opacity: 0, y: -6, scale: 0.96 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -8, scale: 0.95 }}
+                        transition={{ duration: 0.18, ease: "easeOut" }}
+                        className="px-2 py-1 rounded-full text-xs bg-accent/50 border border-blue-600/30 text-blue-600 dark:text-blue-400 flex items-center gap-2 min-w-0"
+                        onClick={() =>
+                          setSelectedFileNames((prev) => prev.filter((n) => n !== name))
+                        }
+                        title={name}
+                      >
+                        <FileIcon fileName={name} />
+                        <span className="truncate">@{name}</span>
+                      </motion.button>
+                    ))}
+                  </AnimatePresence>
                 </div>
               )}
               <div className="flex items-center gap-2 w-full justify-center sm:justify-between">
@@ -532,7 +541,10 @@ export default function Home() {
                               }
                               title={f.file_name}
                             >
-                              {f.file_name}
+                              <span className="flex items-center gap-2 min-w-0">
+                                <FileIcon fileName={f.file_name} />
+                                <span className="truncate">{f.file_name}</span>
+                              </span>
                             </button>
                           );
                         })}

@@ -7,3 +7,13 @@
   --shiki-bg: #24292e;
   --shiki-fg: #e1e4e8;
 }
+
+/* Collapsible animations (fallback, independent of Tailwind plugins) */
+@keyframes scale-y-down {
+  0% { transform: scaleY(0.95); opacity: 0; }
+  100% { transform: scaleY(1); opacity: 1; }
+}
+@keyframes scale-y-up {
+  0% { transform: scaleY(1); opacity: 1; }
+  100% { transform: scaleY(0.95); opacity: 0; }
+}
