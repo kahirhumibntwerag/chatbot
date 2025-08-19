@@ -36,6 +36,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 
 // Base URL (strip trailing slash)
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(/\/$/, "");
@@ -160,16 +162,27 @@ export function AppSidebar() {
   const [filesOpen, setFilesOpen] = useState(true);
   const [logoutLoading, setLogoutLoading] = useState(false);
   const [hiddenFileIds, setHiddenFileIds] = useState<Set<number>>(new Set());
+  const [renameState, setRenameState] = useState<{ id: number | null; oldName: string; newName: string }>({ id: null, oldName: "", newName: "" });
+  const [deleteState, setDeleteState] = useState<{ id: number | null; name: string; loading: boolean }>({ id: null, name: "", loading: false });
 
   async function renameFile(fileId: number, oldName: string) {
-    const newName = window.prompt("Rename file", oldName) ?? "";
-    const trimmed = newName.trim();
-    if (!trimmed || trimmed === oldName) return;
+    // Open dialog instead of window.prompt
+    setRenameState({ id: fileId, oldName, newName: oldName });
+  }
+
+  async function confirmRename() {
+    const { id, oldName, newName } = renameState;
+    if (!id) return;
+    const trimmed = (newName || "").trim();
+    if (!trimmed || trimmed === oldName) {
+      setRenameState({ id: null, oldName: "", newName: "" });
+      return;
+    }
     try {
       const tokenMatch = document.cookie.match(/(?:^|;\s*)jwt=([^;]+)/);
       const token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : null;
       if (!token) throw new Error("Not authenticated");
-      const res = await fetch(api(`/files/${fileId}/rename?new_name=${encodeURIComponent(trimmed)}`), {
+      const res = await fetch(api(`/files/${id}/rename?new_name=${encodeURIComponent(trimmed)}`), {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}` },
         credentials: "include",
@@ -180,25 +193,34 @@ export function AppSidebar() {
       }
       setSelectedFileNames(prev => prev.map(n => (n === oldName ? trimmed : n)));
       toast.success("Renamed");
-      // Optionally: dispatch a custom event to trigger a files refresh if provider listens
+      try { await (refreshFiles as any)?.(); } catch {}
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Rename failed");
+    } finally {
+      setRenameState({ id: null, oldName: "", newName: "" });
     }
   }
 
   async function deleteFile(fileId: number, name: string) {
-    if (!window.confirm(`Delete ${name}? This cannot be undone.`)) return;
+    // Open confirm dialog
+    setDeleteState({ id: fileId, name, loading: false });
+  }
+
+  async function confirmDelete() {
+    const { id, name } = deleteState;
+    if (!id) return;
+    setDeleteState(prev => ({ ...prev, loading: true }));
     // Optimistic hide
     setHiddenFileIds((prev) => {
       const next = new Set(prev);
-      next.add(fileId);
+      next.add(id);
       return next;
     });
     try {
       const tokenMatch = document.cookie.match(/(?:^|;\s*)jwt=([^;]+)/);
       const token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : null;
       if (!token) throw new Error("Not authenticated");
-      const res = await fetch(api(`/files/${fileId}`), {
+      const res = await fetch(api(`/files/${id}`), {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
         credentials: "include",
@@ -209,16 +231,17 @@ export function AppSidebar() {
       }
       setSelectedFileNames(prev => prev.filter(n => n !== name));
       toast.success("Deleted");
-      // Refresh list to reflect deletion from backend
       try { await (refreshFiles as any)?.(); } catch {}
     } catch (e) {
       // Revert optimistic hide on failure
       setHiddenFileIds((prev) => {
         const next = new Set(prev);
-        next.delete(fileId);
+        if (id != null) next.delete(id);
         return next;
       });
       toast.error(e instanceof Error ? e.message : "Delete failed");
+    } finally {
+      setDeleteState({ id: null, name: "", loading: false });
     }
   }
 
@@ -461,6 +484,51 @@ export function AppSidebar() {
           <span>{logoutLoading ? "Logging out..." : "Logout"}</span>
         </Button>
       </SidebarFooter>
+
+      <Dialog open={!!renameState.id} onOpenChange={(open) => open ? null : setRenameState({ id: null, oldName: "", newName: "" })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename File</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="flex flex-col gap-3">
+              <div>
+                <div className="text-xs text-muted-foreground mb-1">Old name</div>
+                <Input value={renameState.oldName} disabled />
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground mb-1">New name</div>
+                <Input value={renameState.newName} onChange={(e) => setRenameState(prev => ({ ...prev, newName: e.target.value }))} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameState({ id: null, oldName: "", newName: "" })}>
+              Cancel
+            </Button>
+            <Button onClick={confirmRename}>Rename</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteState.id} onOpenChange={(open) => open ? null : setDeleteState({ id: null, name: "", loading: false })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete File</DialogTitle>
+          </DialogHeader>
+          <div className="py-2 text-sm">
+            Are you sure you want to delete <span className="font-medium">{deleteState.name}</span>? This cannot be undone.
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteState({ id: null, name: "", loading: false })}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDelete} disabled={deleteState.loading}>
+              {deleteState.loading ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Sidebar>
   );
 
