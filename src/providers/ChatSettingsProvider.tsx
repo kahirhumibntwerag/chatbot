@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useStoreManagement } from "@/hooks/useStoreManagement";
 import type { Store } from "@/types/store";
+import { useFileManagement, type UserFileMeta } from "@/hooks/useFileManagement";
 
 type ChatSettingsContextValue = {
   model: string | null;
@@ -18,6 +19,12 @@ type ChatSettingsContextValue = {
   createStore: (name: string) => Promise<boolean>;
   isCreateStoreOpen: boolean;
   setIsCreateStoreOpen: (open: boolean) => void;
+  files: UserFileMeta[];
+  filesLoading: boolean;
+  filesError: string | null;
+  refreshFiles: () => Promise<void> | void;
+  selectedFileNames: string[];
+  setSelectedFileNames: React.Dispatch<React.SetStateAction<string[]>>;
 };
 
 const ChatSettingsContext = createContext<ChatSettingsContextValue | null>(null);
@@ -38,6 +45,15 @@ export function ChatSettingsProvider({ children }: { children: React.ReactNode }
     isCreateStoreOpen,
     setIsCreateStoreOpen,
   } = useStoreManagement();
+
+  const {
+    files,
+    loading: filesLoading,
+    error: filesError,
+    refresh: refreshFiles,
+    selectedFileNames,
+    setSelectedFileNames,
+  } = useFileManagement();
 
   // Load persisted settings
   useEffect(() => {
@@ -90,6 +106,12 @@ export function ChatSettingsProvider({ children }: { children: React.ReactNode }
       createStore,
       isCreateStoreOpen,
       setIsCreateStoreOpen,
+      files,
+      filesLoading,
+      filesError,
+      refreshFiles,
+      selectedFileNames,
+      setSelectedFileNames,
     }),
     [
       model,
@@ -100,6 +122,10 @@ export function ChatSettingsProvider({ children }: { children: React.ReactNode }
       storesError,
       createStore,
       isCreateStoreOpen,
+      files,
+      filesLoading,
+      filesError,
+      selectedFileNames,
     ]
   );
 

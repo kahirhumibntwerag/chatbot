@@ -139,7 +139,13 @@ export function AppSidebar() {
   const [chatsLoading, setChatsLoading] = useState(true);
   const [chatsError, setChatsError] = useState(false);
 
-  const { stores, setStoreName, storesLoading, storesError } = useChatSettings();
+  const {
+    files,
+    filesLoading,
+    filesError,
+    selectedFileNames,
+    setSelectedFileNames,
+  } = useChatSettings();
   const [logoutLoading, setLogoutLoading] = useState(false);
 
   // Active chat id
@@ -234,7 +240,7 @@ export function AppSidebar() {
   // Group (already ordered newest-first)
   const { today, older } = useMemo(() => groupChatsByDate(chats), [chats]);
 
-  const storesState = storesLoading ? "Loading..." : storesError ? "Failed" : null;
+  const filesState = filesLoading ? "Loading..." : filesError ? "Failed" : null;
   const chatsState = chatsLoading ? "Loading..." : chatsError ? "Failed" : null;
 
   return (
@@ -257,28 +263,38 @@ export function AppSidebar() {
             <CollapsibleTrigger className="flex w-full items-center justify-between p-2 hover:bg-accent rounded-lg">
               <div className="flex items-center">
                 <Database className="mr-2 h-4 w-4" />
-                <span>Stores</span>
+                <span>Files</span>
               </div>
               <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
             </CollapsibleTrigger>
             <CollapsibleContent>
               <div className="pl-4 mt-1">
-                {storesState && (
+                {filesState && (
                   <div className="text-xs text-muted-foreground mb-1">
-                    {storesState}
+                    {filesState}
                   </div>
                 )}
-                {!storesState &&
-                  stores.map((store) => (
-                    <Button
-                      key={store.id}
-                      variant="ghost"
-                      className="w-full justify-start mb-1 text-sm"
-                      onClick={() => setStoreName(store.store_name)}
-                    >
-                      <span className="truncate">{store.store_name}</span>
-                    </Button>
-                  ))}
+                {!filesState &&
+                  files.map((f) => {
+                    const active = selectedFileNames.includes(f.file_name);
+                    return (
+                      <Button
+                        key={f.id}
+                        variant={active ? "secondary" : "ghost"}
+                        className="w-full justify-start mb-1 text-sm"
+                        onClick={() => {
+                          setSelectedFileNames((prev) =>
+                            prev.includes(f.file_name)
+                              ? prev.filter((n) => n !== f.file_name)
+                              : [...prev, f.file_name]
+                          );
+                        }}
+                        title={f.file_name}
+                      >
+                        <span className="truncate">{f.file_name}</span>
+                      </Button>
+                    );
+                  })}
               </div>
             </CollapsibleContent>
           </Collapsible>

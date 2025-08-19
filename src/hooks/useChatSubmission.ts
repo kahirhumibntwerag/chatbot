@@ -17,10 +17,11 @@ export function useChatSubmission(opts: {
   storeName?: string | null;
   model?: string | null;
   toolNames?: string[] | null; // <-- Add this line
+  fileNames?: string[] | null;
   onMessageUpdate: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
   setScrollDown?: (b: boolean) => void;
 }) {
-  const { thread_id, storeName, model, toolNames, onMessageUpdate, setScrollDown } = opts; // <-- Add toolNames
+  const { thread_id, storeName, model, toolNames, fileNames, onMessageUpdate, setScrollDown } = opts;
   const [isLoading, setIsLoading] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const submittingRef = useRef(false); // ADD
@@ -70,17 +71,15 @@ export function useChatSubmission(opts: {
 
         let eventSource: EventSource | null = null;
         try {
-          eventSource = new EventSource(
-            `${API_BASE_URL}/chat/stream?thread_id=${encodeURIComponent(
-              thread_id
-            )}&message=${encodeURIComponent(userText)}&token=${encodeURIComponent(accessToken)}${
-              storeName ? `&store_name=${encodeURIComponent(storeName)}` : ""
-            }${model ? `&model=${encodeURIComponent(model)}` : ""}${
-              toolNames && toolNames.length > 0
-                ? `&tool_names=${encodeURIComponent(toolNames.join(","))}`
-                : ""
-            }`
-          );
+          const qs = new URLSearchParams();
+          qs.set("thread_id", thread_id);
+          qs.set("message", userText);
+          qs.set("token", accessToken);
+          if (storeName) qs.set("store_name", storeName);
+          if (model) qs.set("model", model);
+          if (toolNames && toolNames.length > 0) qs.set("tool_names", toolNames.join(","));
+          if (fileNames && fileNames.length > 0) qs.set("file_names", fileNames.join(","));
+          eventSource = new EventSource(`${API_BASE_URL}/chat/stream?${qs.toString()}`);
 
             let messageBuffer = "";
             let flushTimeout: number | null = null;
@@ -199,7 +198,7 @@ export function useChatSubmission(opts: {
         if (abortRef.current === controller) abortRef.current = null;
       }
     },
-    [thread_id, storeName, model, toolNames, isLoading, onMessageUpdate, setScrollDown]
+    [thread_id, storeName, model, toolNames, fileNames, isLoading, onMessageUpdate, setScrollDown]
   );
 
   return { isLoading, submitMessage, cancel };

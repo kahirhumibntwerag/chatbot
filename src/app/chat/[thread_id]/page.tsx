@@ -66,6 +66,11 @@ export default function Home() {
     setModel,
     selectedToolIds,
     toggleTool,
+    files,
+    filesLoading,
+    selectedFileNames,
+    setSelectedFileNames,
+    refreshFiles,
   } = useChatSettings();
   const [newStoreName, setNewStoreName] = useState("");
   const normalizedThreadId =
@@ -204,10 +209,10 @@ export default function Home() {
   } = useChatSubmission({
     thread_id: normalizedThreadId,
     storeName,
-    model, // PASS model
-    toolNames: selectedToolIds, // PASS mapped tool IDs
+    model,
+    toolNames: selectedToolIds,
+    fileNames: selectedFileNames,
     onMessageUpdate: (updater) => {
-      console.log("Message update:", updater);
       setMessages(updater);
     },
     setScrollDown,
@@ -405,30 +410,25 @@ export default function Home() {
                 disabled={isLoading}
                 className="w-full resize-none p-2"
               />
+              {selectedFileNames.length > 0 && (
+                <div className="flex flex-wrap gap-2 px-2 pt-2 m-2">
+                  {selectedFileNames.map((name) => (
+                    <button
+                      key={name}
+                      type="button"
+                      className="px-2 py-1 rounded-full text-xs bg-primary text-primary-foreground"
+                      onClick={() =>
+                        setSelectedFileNames((prev) => prev.filter((n) => n !== name))
+                      }
+                      title={name}
+                    >
+                      {name}
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className="flex items-center gap-2 w-full justify-center sm:justify-between">
                 <div className="min-w-0 flex items-center gap-2 flex-wrap sm:w-auto">
-                  <Select
-                    value={storeName || undefined}
-                    onValueChange={handleStoreSelect}
-                  >
-                    <SelectTrigger
-                      className={`h-9 rounded-2xl bg-accent/70 backdrop-blur-sm border px-2 data-[placeholder]:opacity-60 w-full sm:w-auto ${
-                        storeName ? "" : "hidden"
-                      }`}
-                    >
-                      {storeName && <StoreIndicator storeName={storeName} />}
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        <SelectLabel>Stores</SelectLabel>
-                        {stores.map((s) => (
-                          <SelectItem key={s.id} value={s.store_name}>
-                            {s.store_name}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
                   <Select
                     value={model || undefined}
                     onValueChange={(val) => setModel(val)}
@@ -500,6 +500,53 @@ export default function Home() {
                     <DropdownMenuTrigger asChild>
                       <Button
                         variant="ghost"
+                        className="h-9 rounded-full px-3"
+                        title="Files"
+                      >
+                        Files
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-64">
+                      <div className="px-2 py-1 text-xs font-medium text-muted-foreground">
+                        Select files for context
+                      </div>
+                      <div className="max-h-64 overflow-auto">
+                        {filesLoading && (
+                          <div className="px-2 py-2 text-xs text-muted-foreground">Loading...</div>
+                        )}
+                        {!filesLoading && files.length === 0 && (
+                          <div className="px-2 py-2 text-xs text-muted-foreground">No files uploaded</div>
+                        )}
+                        {!filesLoading && files.map((f) => {
+                          const active = selectedFileNames.includes(f.file_name);
+                          return (
+                            <button
+                              key={f.id}
+                              className={`w-full text-left px-2 py-1.5 text-sm hover:bg-accent ${active ? 'bg-accent' : ''}`}
+                              onClick={() =>
+                                setSelectedFileNames((prev) =>
+                                  prev.includes(f.file_name)
+                                    ? prev.filter((n) => n !== f.file_name)
+                                    : [...prev, f.file_name]
+                                )
+                              }
+                              title={f.file_name}
+                            >
+                              {f.file_name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <FileUploader onUploaded={refreshFiles} />
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
                         size="icon"
                         className="h-9 w-9 rounded-full"
                       >
@@ -507,41 +554,8 @@ export default function Home() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="w-56">
-                      <Dialog
-                        open={isCreateStoreOpen}
-                        onOpenChange={setIsCreateStoreOpen}
-                      >
-                        <DialogTrigger asChild>
-                          <DropdownMenuItem
-                            onSelect={(e) => e.preventDefault()}
-                          >
-                            <Plus className="mr-2 h-4 w-4" />
-                            Create New Store
-                          </DropdownMenuItem>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Create New Store</DialogTitle>
-                          </DialogHeader>
-                          <div className="grid gap-4 py-4">
-                            <Input
-                              placeholder="Store name"
-                              value={newStoreName}
-                              onChange={(e: {
-                                target: { value: SetStateAction<string> };
-                              }) => setNewStoreName(e.target.value)}
-                            />
-                            <Button onClick={handleCreateStore}>
-                              Create Store
-                            </Button>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-
-                      <DropdownMenuSeparator />
-
                       <DropdownMenuItem asChild>
-                        <FileUploader storeName={storeName} />
+                        <FileUploader onUploaded={refreshFiles} />
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>

@@ -30,93 +30,15 @@ export function useStoreManagement(): UseStoreManagementReturn {
 
   // Fetch stores
   const fetchStores = async () => {
-    setIsLoading(true);
-    try {
-      const cookies = document.cookie.split(";");
-      const accessToken = cookies
-        .find((cookie) => cookie.trim().startsWith("jwt="))
-        ?.split("=")[1];
-
-      if (!accessToken) {
-        throw new Error("No authentication token found");
-      }
-
-      const response = await fetch(`${API_BASE_URL}/stores`, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error("Session expired. Please login again.");
-        }
-        throw new Error("Failed to fetch stores");
-      }
-
-      const data: StoresResponse = await response.json();
-      setStores(data.stores);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to fetch stores";
-      setError(message);
-      toast.error(message);
-    } finally {
-      setIsLoading(false);
-    }
+    // Stores API removed; keep empty list
+    setStores([]);
+    setIsLoading(false);
   };
 
   // Create store
-  const createStore = async (newStoreName: string): Promise<boolean> => {
-    if (!newStoreName?.trim()) {
-      toast.error("Store name cannot be empty");
-      return false;
-    }
-
-    setIsLoading(true);
-    try {
-      const cookies = document.cookie.split(";");
-      const accessToken = cookies
-        .find((cookie) => cookie.trim().startsWith("jwt="))
-        ?.split("=")[1];
-
-      if (!accessToken) {
-        throw new Error("No authentication token found");
-      }
-
-      const response = await fetch(`${API_BASE_URL}/create_store`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({ store_name: newStoreName.trim() }),
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Failed to create store");
-      }
-
-      const data = await response.json();
-      const newStore = {
-        id: data.store_id,
-        store_name: data.store_name,
-        created_at: new Date().toISOString(),
-      };
-
-      setStores(prev => [...prev, newStore]);
-      setStoreName(data.store_name);
-      toast.success("Store created successfully");
-      return true;
-
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to create store";
-      toast.error(message);
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
+  const createStore = async (_newStoreName: string): Promise<boolean> => {
+    toast.message("Stores are deprecated. Use file uploads instead.");
+    return false;
   };
 
   // Handle localStorage sync
@@ -139,9 +61,10 @@ export function useStoreManagement(): UseStoreManagementReturn {
     return () => window.removeEventListener("storeSelected", handleStoreChange);
   }, []);
 
-  // Initial fetch
+  // Initial fetch (no-op, keeps empty list for compatibility)
   useEffect(() => {
     fetchStores();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return {

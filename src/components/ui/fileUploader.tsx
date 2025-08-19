@@ -2,22 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { toast } from '@/components/ui/sonner';
 import { Upload } from 'lucide-react';
 import axios, { AxiosProgressEvent } from 'axios';
-import { API_BASE_URL } from '@/lib/apiConfig'; // added
+import { API_BASE_URL } from '@/lib/apiConfig';
 
 interface FileUploaderProps {
-  storeName: string | null;
+  onUploaded?: () => void;
 }
 
-const FileUploader = ({ storeName }: FileUploaderProps) => {
+const FileUploader = ({ onUploaded }: FileUploaderProps) => {
   const [loading, setLoading] = useState(false);
 
 
   const handleFileUpload = async (file: File) => {
-    if (!storeName) {
-      toast.error("Please select a store first");
-      return;
-    }
-
     setLoading(true);
 
     // Get JWT token from cookies
@@ -34,7 +29,6 @@ const FileUploader = ({ storeName }: FileUploaderProps) => {
 
     const formData = new FormData();
     formData.append("fileb", file);
-    formData.append("store_name", storeName);
 
     // Create a toast for the upload process with file info
     const uploadToastId = toast.loading(
@@ -46,7 +40,7 @@ const FileUploader = ({ storeName }: FileUploaderProps) => {
 
     try {
       const response = await axios.post(
-        `${API_BASE_URL}/add_to_store`, // changed
+        `${API_BASE_URL}/files/upload`,
         formData,
         {
           headers: {
@@ -89,22 +83,8 @@ const FileUploader = ({ storeName }: FileUploaderProps) => {
       // Success confirmation - dismiss the loading toast and show success
       toast.dismiss(uploadToastId);
       
-      toast.success(
-        `✅ File uploaded successfully!`,
-        { 
-          description: `📄 ${file.name} processed into ${data.chunks_created || 'multiple'} chunks`,
-          duration: 5000
-        }
-      );
-
-      // Store confirmation as separate toast
-      toast.info(
-        `🗂️ Added to store: ${storeName}`,
-        {
-          description: `File is now ready for querying. Chunks: ${data.chunks_created || 'N/A'}`,
-          duration: 4000
-        }
-      );
+      toast.success(`✅ File uploaded successfully!`, { duration: 4000 });
+      onUploaded?.();
 
     } catch (error) {
       console.error("Failed to upload file:", error);
