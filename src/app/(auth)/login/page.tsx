@@ -83,12 +83,12 @@ const Login = () => {
     >
       <Card className="w-full max-w-md p-6 bg-white/10 backdrop-blur-md border border-transparent shadow-xl neon-border-animated rounded-xl">
         <CardHeader>
-          <CardTitle>Login</CardTitle>
-          <CardDescription>Please enter your credentials</CardDescription>
+          <CardTitle className="text-white">Login</CardTitle>
+          <CardDescription className="text-gray-300">Please enter your credentials</CardDescription>
         </CardHeader>
         <CardContent>
           <form className="space-y-4" onSubmit={handleSubmit}>
-            <Label htmlFor="username">Username</Label>
+            <Label htmlFor="username" className="text-white">Username</Label>
             <Input
               id="username"
               type="text"
@@ -96,7 +96,7 @@ const Login = () => {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
             />
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password" className="text-white">Password</Label>
             <Input
               id="password"
               type="password"
@@ -109,7 +109,7 @@ const Login = () => {
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isLoading ? "Signing in..." : "Sign in"}
               </Button>
-              <Link className="hover:underline" href="/signup">
+              <Link className="text-blue-300 hover:underline" href="/signup">
                 not registered?
               </Link>
             </div>

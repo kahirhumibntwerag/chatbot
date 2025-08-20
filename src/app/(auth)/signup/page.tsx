@@ -76,33 +76,33 @@ const Signup = () => {
     >
       <Card className="w-full max-w-md p-6 bg-white/10 backdrop-blur-md border border-transparent shadow-xl neon-border-animated rounded-xl">
         <CardHeader>
-          <CardTitle>Signup</CardTitle>
-          <CardDescription>please enter your details</CardDescription>
+          <CardTitle className="text-white">Signup</CardTitle>
+          <CardDescription className="text-gray-300">please enter your details</CardDescription>
         </CardHeader>
         <CardContent>
           <form className="space-y-4" onSubmit={handleSubmit}>
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email" className="text-white">Email</Label>
             <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-            <Label htmlFor="username">Username</Label>
+            <Label htmlFor="username" className="text-white">Username</Label>
             <Input id="username" type="text" required value={username} onChange={(e) => setUsername(e.target.value)} />
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password" className="text-white">Password</Label>
             <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
-            <Label htmlFor="confirm-password">Confirm Password</Label>
+            <Label htmlFor="confirm-password" className="text-white">Confirm Password</Label>
             <Input id="confirm-password" type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
             <div className="flex items-center space-x-4 mt-4">
               <Button type="submit" disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isLoading ? 'Signing up...' : 'Sign up'}
               </Button>
-              <Link className="hover:underline" href="/login">
+              <Link className="text-blue-300 hover:underline" href="/login">
                 already registered?
               </Link>
             </div>
           </form>
         </CardContent>
       </Card>
-      {error && <p className="text-red-500 mt-4">{error}</p>}
-      {success && <p className="text-green-500 mt-4">{success}</p>}
+      {error && <p className="text-red-400 mt-4">{error}</p>}
+      {success && <p className="text-green-400 mt-4">{success}</p>}
     </div>
   );
 };
