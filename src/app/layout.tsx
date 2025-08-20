@@ -1,6 +1,15 @@
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 import { ThemeProvider } from "@/context/ThemeProvider";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+	icons: {
+		icon: "/logo.svg",
+		shortcut: "/logo.svg",
+		apple: "/logo.svg",
+	},
+};
 
 export default function RootLayout({
   children,
