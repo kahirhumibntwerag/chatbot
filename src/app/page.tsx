@@ -22,10 +22,10 @@ export default function Home() {
       {/* Subtle overlay */}
       <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_70%_20%,rgba(255,255,255,0.05),transparent_60%)]" />
 
-      <section className="relative max-w-3xl mx-auto text-center space-y-10">
-        <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight leading-tight">
+      <section className="relative max-w-3xl mx-auto text-center space-y-8 sm:space-y-10">
+        <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight leading-tight">
           <span className="block">
-            <span className="inline-flex items-center justify-center gap-3">
+            <span className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3">
               <motion.img
                 src="/logo.svg"
                 alt="Logo"
@@ -42,7 +42,7 @@ export default function Home() {
               </span>
             </span>
           </span>
-          <span className="mt-3 block text-gray-300">
+          <span className="mt-3 block text-gray-300 text-base sm:text-lg md:text-xl">
             Faster conversations. Smarter context.
           </span>
         </h1>
@@ -52,7 +52,7 @@ export default function Home() {
           conversational interface powered by your data.
         </p>
 
-        <div className="flex flex-col sm:flex-row gap-5 justify-center">
+        <div className="flex flex-col sm:flex-row gap-4 sm:gap-5 justify-center px-4">
           <button
             onClick={() => {
               if (isStarting) return;
@@ -61,7 +61,7 @@ export default function Home() {
             }}
             disabled={isStarting}
             aria-busy={isStarting}
-            className="neon-border relative inline-flex items-center justify-center px-12 py-4 font-semibold rounded-full text-sm tracking-wide transition group bg-[#0c0f19]/70 backdrop-blur-md disabled:opacity-70"
+            className="neon-border relative inline-flex items-center justify-center px-10 py-4 sm:px-12 font-semibold rounded-full text-sm tracking-wide transition group bg-[#0c0f19]/70 backdrop-blur-md disabled:opacity-70 w-full sm:w-auto"
             style={{
               color: "var(--neon-accent)",
             }}
@@ -83,7 +83,7 @@ export default function Home() {
         </div>
       </section>
 
-      <footer className="mt-24 text-xs text-gray-500">
+      <footer className="mt-16 sm:mt-24 text-xs text-gray-500 px-4 text-center">
         © {new Date().getFullYear()} Your Project. All rights reserved.
       </footer>
     </main>
