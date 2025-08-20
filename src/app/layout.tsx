@@ -4,6 +4,7 @@ import { ThemeProvider } from "@/context/ThemeProvider";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
+	title: "Invento",
 	icons: {
 		icon: "/logo.svg",
 		shortcut: "/logo.svg",
