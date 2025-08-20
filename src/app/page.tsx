@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 
 export default function Home() {
   const router = useRouter();
@@ -23,11 +24,23 @@ export default function Home() {
 
       <section className="relative max-w-3xl mx-auto text-center space-y-10">
         <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight leading-tight">
-          <span
-            className="block drop-shadow-[0_0_12px_var(--neon-accent)]"
-            style={{ color: "var(--neon-accent)" }}
-          >
-            AI Chat Assistant
+          <span className="block">
+            <span className="inline-flex items-center justify-center gap-3">
+              <motion.img
+                src="/logo.svg"
+                alt="Logo"
+                className="h-12 w-12 md:h-14 md:w-14 drop-shadow-[0_0_18px_var(--neon-accent)]"
+                initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ duration: 0.6, ease: "easeOut" }}
+              />
+              <span
+                className="drop-shadow-[0_0_12px_var(--neon-accent)]"
+                style={{ color: "var(--neon-accent)" }}
+              >
+                AI Chat Assistant
+              </span>
+            </span>
           </span>
           <span className="mt-3 block text-gray-300">
             Faster conversations. Smarter context.
@@ -67,31 +80,6 @@ export default function Home() {
               </span>
             )}
           </button>
-
-          <a
-            href="#features"
-            className="relative inline-flex items-center justify-center px-12 py-4 font-medium rounded-full text-sm tracking-wide border border-white/15 text-gray-300 hover:text-white hover:border-white/35 transition bg-white/5 backdrop-blur"
-          >
-            Learn More
-          </a>
-        </div>
-
-        <div
-          id="features"
-          className="mt-14 grid grid-cols-1 sm:grid-cols-3 gap-8 text-left"
-        >
-          <Feature
-            title="Context Aware"
-            desc="Understands prior messages & uploaded docs."
-          />
-          <Feature
-            title="Fast Retrieval"
-            desc="Vector + structured search (extensible)."
-          />
-          <Feature
-            title="Markdown & Files"
-            desc="Upload, parse and render enriched answers."
-          />
         </div>
       </section>
 
@@ -99,19 +87,5 @@ export default function Home() {
         © {new Date().getFullYear()} Your Project. All rights reserved.
       </footer>
     </main>
-  );
-}
-
-function Feature({ title, desc }: { title: string; desc: string }) {
-  return (
-    <div className="neon-card p-4 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 hover:border-white/25 transition">
-      <h3
-        className="text-lg font-semibold mb-1 drop-shadow-[0_0_6px_var(--neon-accent)]"
-        style={{ color: "var(--neon-accent)" }}
-      >
-        {title}
-      </h3>
-      <p className="text-sm text-gray-400 leading-relaxed">{desc}</p>
-    </div>
   );
 }
