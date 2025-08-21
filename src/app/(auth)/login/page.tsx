@@ -28,7 +28,6 @@ const Login = () => {
     setIsLoading(true);
     setError("");
     setSuccess("");
-
     try {
       const formData = new URLSearchParams();
       formData.append("username", username);
