@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/card";
 import Link from "next/dist/client/link";
 import { Loader2 } from "lucide-react";
-import { API_BASE_URL } from "@/lib/apiConfig";
 
 const Login = () => {
   const router = useRouter();
@@ -33,17 +32,10 @@ const Login = () => {
       formData.append("username", username);
       formData.append("password", password);
 
-      // Existing jwt (if any) from cookie
-      const existingJwt =
-        document.cookie.match(/(?:^|;\s*)jwt=([^;]+)/)?.[1] || "";
-
-      const response = await fetch(`${API_BASE_URL}/token`, {
+      const response = await fetch(`/api/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
-          ...(existingJwt
-            ? { Authorization: `Bearer ${decodeURIComponent(existingJwt)}` }
-            : {}),
         },
         body: formData,
         credentials: "include",
@@ -54,15 +46,6 @@ const Login = () => {
       if (!response.ok) {
         setError(data.detail || "Login failed. Please try again.");
         return;
-      }
-
-      // Accept possible token field names
-      const newToken: string | undefined =
-        data.jwt || data.token || data.access_token;
-
-      if (newToken) {
-        // Persist token as cookie for later Authorization headers
-        document.cookie = `jwt=${newToken}; Path=/; SameSite=Lax`;
       }
 
       setSuccess("Login successful!");

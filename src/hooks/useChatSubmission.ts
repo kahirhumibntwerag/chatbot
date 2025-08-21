@@ -1,7 +1,6 @@
 import { useRef, useState, useCallback } from "react";
 // Removed unused import Message
 import { toast } from "sonner";
-import { API_BASE_URL } from "@/lib/apiConfig";
 
 // Define local message type (align with actual usage)
 export type ChatMessage = {
@@ -59,27 +58,16 @@ export function useChatSubmission(opts: {
       try {
 
 
-        const cookies = document.cookie.split(";").map(c => c.trim());
-        const accessToken = cookies.find(c => c.startsWith("jwt="))?.split("=")[1];
-
-        if (!accessToken) {
-          console.error("No JWT token found in cookies");
-          toast.error("Authentication failed. Please login again.");
-          setIsLoading(false);
-          return;
-        }
-
         let eventSource: EventSource | null = null;
         try {
           const qs = new URLSearchParams();
           qs.set("thread_id", thread_id);
           qs.set("message", userText);
-          qs.set("token", accessToken);
           if (storeName) qs.set("store_name", storeName);
           if (model) qs.set("model", model);
           if (toolNames && toolNames.length > 0) qs.set("tool_names", toolNames.join(","));
           if (fileNames && fileNames.length > 0) qs.set("file_names", fileNames.join(","));
-          eventSource = new EventSource(`${API_BASE_URL}/chat/stream?${qs.toString()}`);
+          eventSource = new EventSource(`/api/chat/stream?${qs.toString()}`);
 
             let messageBuffer = "";
             let flushTimeout: number | null = null;

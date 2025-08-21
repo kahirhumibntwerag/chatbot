@@ -2,7 +2,6 @@
 
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { API_BASE_URL } from "@/lib/apiConfig";
 
 type AuthUser = {
 	username?: string;
@@ -19,11 +18,8 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 function getToken(): string | null {
-	if (typeof document === "undefined") return null;
-	const raw = document.cookie
-		.split(";")
-		.find((c) => c.trim().startsWith("jwt="));
-	return raw ? raw.split("=")[1] : null;
+	// no longer needed; kept for potential future use
+	return null;
 }
 
 export function AuthProvider({ children, requireAuth = false }: { children: React.ReactNode; requireAuth?: boolean }) {
@@ -37,14 +33,7 @@ export function AuthProvider({ children, requireAuth = false }: { children: Reac
 		setIsAuthLoading(true);
 		setAuthError(null);
 		try {
-			const token = getToken();
-			const res = await fetch(`${API_BASE_URL}/users/me/`, {
-				credentials: "include",
-				headers: {
-					...(token ? { Authorization: `Bearer ${token}` } : {}),
-					Accept: "application/json",
-				},
-			});
+			const res = await fetch(`/api/auth/me`, { credentials: "include" });
 			if (!res.ok) throw new Error("unauth");
 			const data = await res.json();
 			setUser(data || {});

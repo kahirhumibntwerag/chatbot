@@ -112,13 +112,7 @@ function groupChatsByDate(chats: Chat[]) {
 }
 
 async function fetchChats(): Promise<Chat[]> {
-  const tokenMatch = document.cookie.match(/(?:^|;\s*)jwt=([^;]+)/);
-  const token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : null;
-  if (!token) return [];
-  const res = await fetch(api("/checkpoints/messages"), {
-    headers: { Authorization: `Bearer ${token}` },
-    credentials: "include",
-  });
+  const res = await fetch('/api/checkpoints/messages', { credentials: 'include' });
   if (!res.ok) return [];
   const raw = await res.json();
   if (!Array.isArray(raw)) return [];
@@ -179,13 +173,9 @@ export function AppSidebar() {
       return;
     }
     try {
-      const tokenMatch = document.cookie.match(/(?:^|;\s*)jwt=([^;]+)/);
-      const token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : null;
-      if (!token) throw new Error("Not authenticated");
-      const res = await fetch(api(`/files/${id}/rename?new_name=${encodeURIComponent(trimmed)}`), {
-        method: "PATCH",
-        headers: { Authorization: `Bearer ${token}` },
-        credentials: "include",
+      const res = await fetch(`/api/files/${id}/rename?new_name=${encodeURIComponent(trimmed)}`, {
+        method: 'PATCH',
+        credentials: 'include',
       });
       if (!res.ok) {
         const msg = await res.text();
@@ -217,13 +207,9 @@ export function AppSidebar() {
       return next;
     });
     try {
-      const tokenMatch = document.cookie.match(/(?:^|;\s*)jwt=([^;]+)/);
-      const token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : null;
-      if (!token) throw new Error("Not authenticated");
-      const res = await fetch(api(`/files/${id}`), {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-        credentials: "include",
+      const res = await fetch(`/api/files/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
       });
       if (!res.ok) {
         const msg = await res.text();

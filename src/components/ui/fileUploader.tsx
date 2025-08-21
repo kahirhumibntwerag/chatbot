@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { toast } from '@/components/ui/sonner';
 import { Upload } from 'lucide-react';
 import axios, { AxiosProgressEvent } from 'axios';
-import { API_BASE_URL } from '@/lib/apiConfig';
 
 interface FileUploaderProps {
   onUploaded?: () => void;
@@ -15,17 +14,7 @@ const FileUploader = ({ onUploaded }: FileUploaderProps) => {
   const handleFileUpload = async (file: File) => {
     setLoading(true);
 
-    // Get JWT token from cookies
-    const cookies = document.cookie.split(";");
-    const accessToken = cookies
-      .find((cookie) => cookie.trim().startsWith("jwt="))
-      ?.split("=")[1];
-
-    if (!accessToken) {
-      toast.error("No authentication token found. Please login again.");
-      setLoading(false);
-      return;
-    }
+    // Token is HttpOnly; upload via proxy route which reads the cookie server-side
 
     const formData = new FormData();
     formData.append("fileb", file);
@@ -40,13 +29,10 @@ const FileUploader = ({ onUploaded }: FileUploaderProps) => {
 
     try {
       const response = await axios.post(
-        `${API_BASE_URL}/files/upload`,
+        `/api/files/upload`,
         formData,
         {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'multipart/form-data',
-          },
+          headers: { 'Content-Type': 'multipart/form-data' },
           withCredentials: true,
           onUploadProgress: (progressEvent: AxiosProgressEvent) => {
             if (progressEvent.total) {

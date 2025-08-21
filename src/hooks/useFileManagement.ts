@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { API_BASE_URL } from "@/lib/apiConfig";
 import { toast } from "sonner";
 
 export interface UserFileMeta {
@@ -20,19 +19,7 @@ export function useFileManagement() {
     setLoading(true);
     setError(null);
     try {
-      const cookies = document.cookie.split(";");
-      const accessToken = cookies
-        .find((cookie) => cookie.trim().startsWith("jwt="))
-        ?.split("=")[1];
-
-      if (!accessToken) {
-        throw new Error("No authentication token found");
-      }
-
-      const res = await fetch(`${API_BASE_URL}/files`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-        credentials: "include",
-      });
+      const res = await fetch(`/api/files`, { credentials: "include" });
       if (!res.ok) {
         const text = await res.text();
         throw new Error(text || `Failed to fetch files (${res.status})`);

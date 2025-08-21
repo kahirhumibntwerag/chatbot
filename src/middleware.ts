@@ -6,6 +6,7 @@ const protectedRoutes = ['/chat']
 
 export function middleware(request: NextRequest) {
   const token = request.cookies.get('jwt')?.value
+  console.log(token)
 
   const url = request.nextUrl
 
@@ -19,5 +20,5 @@ export function middleware(request: NextRequest) {
 
 // Match only protected routes
 export const config = {
-  matcher: ['/chat'],
+  matcher: ['/chat/:path*'],
 }

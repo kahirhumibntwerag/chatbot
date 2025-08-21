@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, type Dispatch, type SetStateAction } from "react";
-import { API_BASE_URL } from "@/lib/apiConfig";
 
 interface ChatMessage {
   text: string;
@@ -23,13 +22,7 @@ function deriveTitle(messages: ChatMessage[], existingTitle?: string) {
 }
 
 async function fetchAllChats(): Promise<Chat[]> {
-  const tokenMatch = document.cookie.match(/(?:^|;\s*)jwt=([^;]+)/);
-  const token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : null;
-  if (!token) return [];
-  const res = await fetch(`${API_BASE_URL}/checkpoints/messages`, {
-    headers: { Authorization: `Bearer ${token}` },
-    credentials: "include",
-  });
+  const res = await fetch(`/api/checkpoints/messages`, { credentials: "include" });
   if (!res.ok) return [];
   const data = await res.json();
   if (!Array.isArray(data)) return [];
