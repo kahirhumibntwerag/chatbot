@@ -8,6 +8,7 @@ import Script from "next/script";
 export default function Home() {
   const router = useRouter();
   const [isStarting, setIsStarting] = useState(false);
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://invento.it.com";
 
   return (
     <main
@@ -29,15 +30,10 @@ export default function Home() {
             "@context": "https://schema.org",
             "@type": "WebSite",
             name: "Invento",
-            url:
-              (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000") +
-              "/",
+            url: siteUrl + "/",
             potentialAction: {
               "@type": "SearchAction",
-              target:
-                (process.env.NEXT_PUBLIC_SITE_URL ??
-                  "http://localhost:3000") +
-                "/search?q={search_term_string}",
+              target: siteUrl + "/search?q={search_term_string}",
               "query-input": "required name=search_term_string",
             },
           }),
@@ -53,12 +49,8 @@ export default function Home() {
             "@context": "https://schema.org",
             "@type": "Organization",
             name: "Invento",
-            url:
-              (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000") +
-              "/",
-            logo:
-              (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000") +
-              "/logo.svg",
+            url: siteUrl + "/",
+            logo: siteUrl + "/logo.svg",
           }),
         }}
       />

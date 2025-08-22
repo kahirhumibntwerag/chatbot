@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://invento.it.com";
 
   // Add more routes as needed; keeping minimal to avoid crawling private/chat threads
   const routes: Array<{ url: string; lastModified?: string; changeFrequency?: MetadataRoute.Sitemap[0]["changeFrequency"]; priority?: number; }> = [
