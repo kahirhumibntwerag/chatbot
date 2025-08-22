@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import Script from "next/script";
 
 export default function Home() {
   const router = useRouter();
@@ -19,6 +20,48 @@ export default function Home() {
         ["--ring" as any]: "rgb(124 91 242)",
       }}
     >
+      <Script
+        id="ld-json-website"
+        type="application/ld+json"
+        strategy="afterInteractive"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            name: "Invento",
+            url:
+              (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000") +
+              "/",
+            potentialAction: {
+              "@type": "SearchAction",
+              target:
+                (process.env.NEXT_PUBLIC_SITE_URL ??
+                  "http://localhost:3000") +
+                "/search?q={search_term_string}",
+              "query-input": "required name=search_term_string",
+            },
+          }),
+        }}
+      />
+
+      <Script
+        id="ld-json-organization"
+        type="application/ld+json"
+        strategy="afterInteractive"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            name: "Invento",
+            url:
+              (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000") +
+              "/",
+            logo:
+              (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000") +
+              "/logo.svg",
+          }),
+        }}
+      />
       {/* Subtle overlay */}
       <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_70%_20%,rgba(255,255,255,0.05),transparent_60%)]" />
 
