@@ -67,7 +67,20 @@ export function useChatSubmission(opts: {
           if (model) qs.set("model", model);
           if (toolNames && toolNames.length > 0) qs.set("tool_names", toolNames.join(","));
           if (fileNames && fileNames.length > 0) qs.set("file_names", fileNames.join(","));
-          eventSource = new EventSource(`/api/chat/stream?${qs.toString()}`);
+          // Custom EventSource to detect 401 via initial HEAD/ping
+          const streamUrl = `/api/chat/stream?${qs.toString()}`;
+          // Proactively detect unauthorized by attempting a fetch first
+          try {
+            const probe = await fetch(streamUrl, { method: "HEAD", credentials: "include", cache: "no-store" });
+            if (probe.status === 401) {
+              toast.error("Session expired. Please sign in again.");
+              window.location.assign("/login");
+              setIsLoading(false);
+              submittingRef.current = false;
+              return;
+            }
+          } catch {}
+          eventSource = new EventSource(streamUrl);
 
             let messageBuffer = "";
             let flushTimeout: number | null = null;
@@ -164,7 +177,19 @@ export function useChatSubmission(opts: {
             setIsLoading(false);
           });
 
-          eventSource.onerror = () => {
+          eventSource.onerror = async (ev: any) => {
+            // Some browsers expose a .status on underlying request via ev, but it's not standard
+            // Fallback: attempt a probe request to determine if auth failed
+            try {
+              const probe = await fetch(streamUrl, { method: "HEAD", credentials: "include", cache: "no-store" });
+              if (probe.status === 401) {
+                toast.error("Session expired. Please sign in again.");
+                window.location.assign("/login");
+                eventSource?.close();
+                setIsLoading(false);
+                return;
+              }
+            } catch {}
             console.error("SSE connection error");
             eventSource?.close();
             setIsLoading(false);

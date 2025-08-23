@@ -46,12 +46,46 @@ export function AuthProvider({ children, requireAuth = false }: { children: Reac
 		}
 	};
 
+	// Silent auth check to avoid UI flicker; used on interval/focus/visibility
+	const silentCheckAuth = async () => {
+		try {
+			const res = await fetch(`/api/auth/me`, { credentials: "include" });
+			if (!res.ok) throw new Error("unauth");
+			const data = await res.json();
+			setUser(data || {});
+			setAuthError(null);
+		} catch {
+			setUser(null);
+			setAuthError("unauth");
+			if (requireAuth) router.replace("/login");
+		}
+	};
+
 	useEffect(() => {
 		if (didFetchRef.current) return;
 		didFetchRef.current = true;
 		fetchMe();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
+
+	// Periodic and focus/visibility-based checks to catch token expiry mid-session
+	useEffect(() => {
+		if (!requireAuth) return;
+		let intervalId: number | null = null;
+		const onFocus = () => silentCheckAuth();
+		const onVisibility = () => {
+			if (document.visibilityState === "visible") silentCheckAuth();
+		};
+		window.addEventListener("focus", onFocus);
+		document.addEventListener("visibilitychange", onVisibility);
+		intervalId = window.setInterval(() => silentCheckAuth(), 2 * 60 * 1000);
+		return () => {
+			window.removeEventListener("focus", onFocus);
+			document.removeEventListener("visibilitychange", onVisibility);
+			if (intervalId) clearInterval(intervalId);
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [requireAuth]);
 
 	const value = useMemo<AuthContextValue>(
 		() => ({ user, isAuthLoading, authError, refreshAuth: fetchMe }),
