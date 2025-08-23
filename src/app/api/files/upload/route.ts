@@ -9,17 +9,21 @@ export async function POST(req: Request) {
 
   // Stream the incoming multipart body directly to the backend to avoid body parser limits
   const contentType = req.headers.get('content-type') || undefined
-  const contentLength = req.headers.get('content-length') || undefined
 
-  const r = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/files/upload`, {
-    method: 'POST',
-    body: req.body ?? undefined,
-    headers: {
-      ...(contentType ? { 'Content-Type': contentType } : {}),
-      ...(contentLength ? { 'Content-Length': contentLength } : {}),
-      Authorization: `Bearer ${token}`,
-    },
-  })
+  const r = await fetch(
+    `${process.env.NEXT_PUBLIC_API_BASE_URL}/files/upload`,
+    {
+      // Node.js streaming requires duplex: 'half' for request bodies
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      duplex: 'half' as any,
+      method: 'POST',
+      body: req.body ?? undefined,
+      headers: {
+        ...(contentType ? { 'Content-Type': contentType } : {}),
+        Authorization: `Bearer ${token}`,
+      },
+    } as any
+  )
 
   const text = await r.text()
   let data: any = null
