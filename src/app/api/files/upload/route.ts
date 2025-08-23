@@ -1,17 +1,24 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 
+export const runtime = 'nodejs'
+
 export async function POST(req: Request) {
   const token = (await cookies()).get('jwt')?.value
   if (!token) return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 })
 
-  const form = await req.formData()
+  // Stream the incoming multipart body directly to the backend to avoid body parser limits
+  const contentType = req.headers.get('content-type') || undefined
+  const contentLength = req.headers.get('content-length') || undefined
 
   const r = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/files/upload`, {
     method: 'POST',
-    body: form,
-    headers: { Authorization: `Bearer ${token}` },
-    credentials: 'include',
+    body: req.body ?? undefined,
+    headers: {
+      ...(contentType ? { 'Content-Type': contentType } : {}),
+      ...(contentLength ? { 'Content-Length': contentLength } : {}),
+      Authorization: `Bearer ${token}`,
+    },
   })
 
   const text = await r.text()
