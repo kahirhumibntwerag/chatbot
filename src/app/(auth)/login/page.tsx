@@ -49,7 +49,12 @@ const Login = () => {
       }
 
       setSuccess("Login successful!");
-      router.push("/chat");
+
+      // Ensure the cookie is usable server-side before navigating
+      await fetch(`/api/auth/me`, { credentials: "include", cache: "no-store" }).catch(() => {});
+
+      // Use a full navigation so middleware/auth see the fresh cookie
+      window.location.assign("/chat");
     } catch (err) {
       setError("An unexpected error occurred. Please try again.");
       console.error(err);

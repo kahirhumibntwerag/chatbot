@@ -450,6 +450,7 @@ export default function Home() {
                     value={model || undefined}
                     onValueChange={(val) => setModel(val)}
                   >
+                    
                     <SelectTrigger className="h-9 rounded-2xl bg-accent/70 backdrop-blur-sm border px-2 data-[placeholder]:opacity-60 w-fit ">
                       <SelectValue placeholder="Model" />
                     </SelectTrigger>
