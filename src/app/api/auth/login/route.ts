@@ -20,9 +20,16 @@ export async function POST(req: Request) {
   const resp = NextResponse.json({ ok: true });
 
   if (token) {
+    const isSecure = (() => {
+      try {
+        return new URL(req.url).protocol === 'https:';
+      } catch {
+        return process.env.NODE_ENV === 'production';
+      }
+    })();
     resp.cookies.set('jwt', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // false in dev
+      secure: isSecure, // ensure Safari/iOS receives cookie only when HTTPS
       sameSite: 'lax',
       path: '/',
       maxAge: 60 * 60 * 24 * 7,
