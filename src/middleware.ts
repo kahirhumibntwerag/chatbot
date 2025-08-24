@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-const protectedRoutes = ['/chat']
+const protectedRoutes = []
 
 export function middleware(request: NextRequest) {
   const token = request.cookies.get('jwt')?.value
@@ -20,5 +20,5 @@ export function middleware(request: NextRequest) {
 
 // Match only protected routes
 export const config = {
-  matcher: ['/chat/:path*'],
+  matcher: ['/chat'],
 }
