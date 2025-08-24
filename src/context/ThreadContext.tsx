@@ -10,18 +10,19 @@ type ThreadContextType = {
 const ThreadContext = createContext<ThreadContextType | undefined>(undefined);
 
 export const ThreadProvider = ({ children }: { children: React.ReactNode }) => {
-  const [threadId, setThreadId] = useState<string | null>(null);
+  const getThreadIdFromPath = () => {
+    const match = window.location.pathname.match(/\/?chat\/([^\/?#]+)/);
+    return match ? match[1] : null;
+  };
 
-  // Initialize from current path and keep in sync with browser navigation
+  // Synchronously derive initial thread id to avoid a null flicker on first render
+  const [threadId, setThreadId] = useState<string | null>(() =>
+    typeof window !== 'undefined' ? getThreadIdFromPath() : null
+  );
+
+  // Keep in sync with browser navigation (back/forward)
   useEffect(() => {
-    const deriveFromPath = () => {
-      const m = window.location.pathname.match(/\/chat\/([^\/?#]+)/);
-      return m ? m[1] : null;
-    };
-    // Initial
-    setThreadId(deriveFromPath());
-    // Popstate listener for back/forward
-    const onPopState = () => setThreadId(deriveFromPath());
+    const onPopState = () => setThreadId(getThreadIdFromPath());
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
