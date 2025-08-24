@@ -18,7 +18,6 @@ export async function POST(req: Request) {
   if (!r.ok) return NextResponse.json(data, { status: r.status });
 
   const token = data.jwt || data.token || data.access_token;
-  const resp = NextResponse.json({ ok: true });
 
   if (token) {
     const isSecure = (() => {
@@ -28,19 +27,34 @@ export async function POST(req: Request) {
         return process.env.NODE_ENV === 'production';
       }
     })();
-    resp.cookies.set('jwt', token, {
+
+    // JSON response for fetch/XHR clients
+    const jsonResp = NextResponse.json({ ok: true });
+    jsonResp.cookies.set('jwt', token, {
       httpOnly: true,
-      secure: isSecure, // ensure Safari/iOS receives cookie only when HTTPS
+      secure: isSecure,
       sameSite: 'lax',
       path: '/',
       maxAge: 60 * 60 * 24 * 7,
       priority: 'high',
     });
 
-    // If this was a real form post (e.g., iOS Safari workaround), perform a server redirect
+    // Real form post (e.g., iOS Safari) → redirect and also set cookie on the redirect
     if (acceptHeader.includes('text/html')) {
-      return NextResponse.redirect(new URL('/chat', req.url), { status: 303 });
+      const redirect = NextResponse.redirect(new URL('/chat', req.url), { status: 303 });
+      redirect.cookies.set('jwt', token, {
+        httpOnly: true,
+        secure: isSecure,
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 60 * 60 * 24 * 7,
+        priority: 'high',
+      });
+      return redirect;
     }
+
+    return jsonResp;
   }
-  return resp;
+
+  return NextResponse.json({ ok: true });
 }
