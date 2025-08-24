@@ -1,6 +1,6 @@
 "use client";
 import React, { useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,6 @@ import { Loader2 } from "lucide-react";
 
 const Login = () => {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -33,9 +32,11 @@ const Login = () => {
   }, []);
 
   React.useEffect(() => {
-    const err = searchParams.get("error");
-    if (err) setError("Login failed. Please try again.");
-  }, [searchParams]);
+    try {
+      const err = new URLSearchParams(window.location.search).get("error");
+      if (err) setError("Login failed. Please try again.");
+    } catch {}
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     // On iOS Safari, allow a real form navigation so Set-Cookie reliably persists
