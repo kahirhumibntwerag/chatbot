@@ -5,6 +5,7 @@ export async function POST(req: Request) {
   const form = await req.formData();
   const username = String(form.get('username') || '');
   const password = String(form.get('password') || '');
+  const acceptHeader = req.headers.get('accept') || '';
 
   const r = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/token`, {
     method: 'POST',
@@ -33,7 +34,13 @@ export async function POST(req: Request) {
       sameSite: 'lax',
       path: '/',
       maxAge: 60 * 60 * 24 * 7,
+      priority: 'high',
     });
+
+    // If this was a real form post (e.g., iOS Safari workaround), perform a server redirect
+    if (acceptHeader.includes('text/html')) {
+      return NextResponse.redirect(new URL('/chat', req.url), { status: 303 });
+    }
   }
   return resp;
 }

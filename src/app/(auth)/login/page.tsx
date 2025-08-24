@@ -1,6 +1,6 @@
 "use client";
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import React, { useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -16,13 +16,30 @@ import { Loader2 } from "lucide-react";
 
 const Login = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const isIOS = useMemo(() => {
+    if (typeof navigator === "undefined") return false;
+    const ua = navigator.userAgent || navigator.vendor || (window as any).opera || "";
+    // Exclude Chrome/Firefox on iOS which handle fetch cookies better
+    const isiOSDevice = /iPad|iPhone|iPod/.test(ua);
+    const isSafari = /Safari\//.test(ua) && !/CriOS\//.test(ua) && !/FxiOS\//.test(ua);
+    return isiOSDevice && isSafari;
+  }, []);
+
+  React.useEffect(() => {
+    const err = searchParams.get("error");
+    if (err) setError("Login failed. Please try again.");
+  }, [searchParams]);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    // On iOS Safari, allow a real form navigation so Set-Cookie reliably persists
+    if (isIOS) return;
     e.preventDefault();
     setIsLoading(true);
     setError("");
@@ -74,10 +91,11 @@ const Login = () => {
           <CardDescription className="text-gray-300">Please enter your credentials</CardDescription>
         </CardHeader>
         <CardContent>
-          <form className="space-y-4" onSubmit={handleSubmit}>
+          <form className="space-y-4" onSubmit={handleSubmit} action="/api/auth/login" method="POST">
             <Label htmlFor="username" className="text-white">Username</Label>
             <Input
               id="username"
+              name="username"
               type="text"
               required
               value={username}
@@ -86,6 +104,7 @@ const Login = () => {
             <Label htmlFor="password" className="text-white">Password</Label>
             <Input
               id="password"
+              name="password"
               type="password"
               required
               value={password}
