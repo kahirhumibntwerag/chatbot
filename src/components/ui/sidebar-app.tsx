@@ -38,6 +38,7 @@ import { MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useThread } from "@/context/ThreadContext";
 
 // Base URL (strip trailing slash)
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(/\/$/, "");
@@ -140,6 +141,7 @@ function isChatUpdatedEvent(
 export function AppSidebar() {
   const router = useRouter();
   const pathname = usePathname();
+  const { navigateToThread, threadId } = useThread();
 
   const [chats, setChats] = useState<Chat[]>([]);
   const [chatsLoading, setChatsLoading] = useState(true);
@@ -231,11 +233,12 @@ export function AppSidebar() {
     }
   }
 
-  // Active chat id
+  // Active chat id (prefer context for pushState-driven changes)
   const activeChatId = useMemo(() => {
+    if (threadId) return threadId;
     const match = pathname?.match(/\/chat\/([^\/?#]+)/);
     return match ? match[1] : null;
-  }, [pathname]);
+  }, [threadId, pathname]);
 
   // Initial chats
   useEffect(() => {
@@ -526,7 +529,7 @@ export function AppSidebar() {
 
   function startNewChat() {
     const id = crypto.randomUUID?.() || `chat_${Date.now()}`;
-    router.push(`/chat/${id}`);
+    navigateToThread(id);
   }
 }
 
@@ -540,6 +543,9 @@ function ChatSection({
   chats: Chat[];
   activeChatId: string | null;
 }) {
+  const { navigateToThread } = useThread();
+  const pathname = usePathname();
+  const isOnChatLanding = pathname === '/chat';
   return (
     <div>
       <div className="mb-2 px-2 text-xs font-medium text-muted-foreground">
@@ -547,7 +553,19 @@ function ChatSection({
       </div>
       <div className="space-y-1">
         {chats.map((chat) => (
-          <Link key={chat.id} href={`/chat/${chat.id}`} prefetch>
+          <Link
+            key={chat.id}
+            href={`/chat/${chat.id}`}
+            prefetch
+            onClick={(e) => {
+              // On landing page, allow Next to navigate so the correct route loads
+              if (isOnChatLanding) return;
+              // Left-click without modifier: use pushState to avoid full navigation
+              if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+              e.preventDefault();
+              navigateToThread(chat.id);
+            }}
+          >
             <Button
               variant="ghost"
               aria-current={activeChatId === chat.id ? "page" : undefined}

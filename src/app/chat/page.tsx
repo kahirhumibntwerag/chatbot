@@ -3,17 +3,18 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/ui/sidebar-app"
 import { useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { useRouter } from 'next/navigation';
+import { useThread } from "@/context/ThreadContext";
+
 
 
 export default function ChatLanding() {
-  const router = useRouter();
+  const { navigateToThread } = useThread();
 
   useEffect(() => {
     // Generate a new thread ID and redirect
     const thread_id = uuidv4();
-    router.push(`/chat/${thread_id}`);
-  }, [router]);
+    navigateToThread(thread_id);
+  }, [navigateToThread]);
 
   // Show a loading state while redirecting
   return (

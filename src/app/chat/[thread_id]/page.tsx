@@ -29,7 +29,6 @@ import { StoreIndicator } from "@/components/ui/StoreIndicator";
 import { useAutoResize } from "@/hooks/useAutoResizeTextArea";
 import { useAutoScroll } from "@/hooks/useAutoScroll";
 import { useChatSubmission } from "@/hooks/useChatSubmission";
-import { useRouter } from "next/navigation";
 import {
   Select,
   SelectTrigger,
@@ -48,10 +47,10 @@ import { Switch } from "@/components/ui/switch";
 import { useChatSettings } from "@/providers/ChatSettingsProvider";
 import { FileIcon, truncateFileName } from "@/components/ui/fileIcon";
 import { useAuth } from "@/providers/AuthProvider";
+import { useThread } from "@/context/ThreadContext";
 
 export default function Home() {
-  const router = useRouter();
-  const { thread_id } = useParams();
+  const { threadId } = useThread();
   const { isAuthLoading } = useAuth();
   const [input, setInput] = useState("");
   const {
@@ -74,12 +73,7 @@ export default function Home() {
     refreshFiles,
   } = useChatSettings();
   const [newStoreName, setNewStoreName] = useState("");
-  const normalizedThreadId =
-    typeof thread_id === "string"
-      ? thread_id
-      : Array.isArray(thread_id)
-      ? thread_id[0] ?? ""
-      : "";
+  const normalizedThreadId = threadId ?? "";
   const [messages, setMessages] = useChatHistory(normalizedThreadId);
   // New state to control one-time animation
   const [animateFirstBatch, setAnimateFirstBatch] = useState(false);
@@ -137,7 +131,7 @@ export default function Home() {
   };
 
   useAutoResize(textareaRef, input, { maxHeight: 200 });
-  useAutoScroll(scrollRef, [thread_id]);
+  useAutoScroll(scrollRef, [normalizedThreadId]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -321,8 +315,8 @@ export default function Home() {
     });
   }, [normalizedThreadId]);
 
-  // If auth is loading, render a minimal placeholder to avoid flicker
-  if (isAuthLoading) {
+  // If auth or thread id is loading, render a minimal placeholder to avoid flicker
+  if (isAuthLoading || !normalizedThreadId) {
     return <div className="flex h-svh w-full" />;
   }
 
