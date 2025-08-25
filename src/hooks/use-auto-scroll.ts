@@ -57,9 +57,17 @@ export function useAutoScroll(dependencies: React.DependencyList) {
   }, [])
 
   useEffect(() => {
-    if (shouldAutoScroll) {
-      scrollToBottom()
-    }
+    const el = containerRef.current
+    if (!el) return
+    // Immediate scroll
+    el.scrollTop = el.scrollHeight
+    // Ensure after paint/content growth
+    requestAnimationFrame(() => {
+      const e = containerRef.current
+      if (e) e.scrollTop = e.scrollHeight
+    })
+    // Keep auto-scroll enabled
+    setShouldAutoScroll(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, dependencies)
 
