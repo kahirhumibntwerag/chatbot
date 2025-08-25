@@ -1,60 +1,85 @@
 // src/app/api/auth/login/route.ts
 import { NextResponse } from 'next/server';
 
+function cookieOptions(isSecure: boolean) {
+  return {
+    httpOnly: true,
+    secure: isSecure,
+    sameSite: 'lax' as const,
+    path: '/',
+    maxAge: 60 * 60 * 24 * 7,
+    // domain: '.example.com', // uncomment if using subdomains
+  };
+}
+
 export async function POST(req: Request) {
-  const form = await req.formData();
-  const username = String(form.get('username') || '');
-  const password = String(form.get('password') || '');
+  const contentType = req.headers.get('content-type') || '';
   const acceptHeader = req.headers.get('accept') || '';
 
-  const r = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/token`, {
+  // Support both real form posts and fetch
+  let username = '';
+  let password = '';
+  if (contentType.includes('application/x-www-form-urlencoded')) {
+    const form = await req.formData();
+    username = String(form.get('username') || '');
+    password = String(form.get('password') || '');
+  } else {
+    const body = await req.json().catch(() => ({}));
+    username = String(body.username || '');
+    password = String(body.password || '');
+  }
+
+  const upstream = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ username, password }),
-    credentials: 'include',
+    // credentials not needed unless your API requires them
   });
 
-  const data = await r.json();
-  if (!r.ok) return NextResponse.json(data, { status: r.status });
-
-  const token = data.jwt || data.token || data.access_token;
-
-  if (token) {
-    const isSecure = (() => {
-      try {
-        return new URL(req.url).protocol === 'https:';
-      } catch {
-        return process.env.NODE_ENV === 'production';
-      }
-    })();
-
-    // JSON response for fetch/XHR clients
-    const jsonResp = NextResponse.json({ ok: true });
-    jsonResp.cookies.set('jwt', token, {
-      httpOnly: true,
-      secure: isSecure,
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 60 * 60 * 24 * 7,
-      priority: 'high',
-    });
-
-    // Real form post (e.g., iOS Safari) → redirect and also set cookie on the redirect
-    if (acceptHeader.includes('text/html')) {
-      const redirect = NextResponse.redirect(new URL('/chat', req.url), { status: 303 });
-      redirect.cookies.set('jwt', token, {
-        httpOnly: true,
-        secure: isSecure,
-        sameSite: 'lax',
-        path: '/',
-        maxAge: 60 * 60 * 24 * 7,
-        priority: 'high',
-      });
-      return redirect;
-    }
-
-    return jsonResp;
+  const data = await upstream.json();
+  if (!upstream.ok) {
+    return NextResponse.json(data, { status: upstream.status });
   }
 
-  return NextResponse.json({ ok: true });
+  const token = data.jwt || data.token || data.access_token;
+  if (!token) {
+    return NextResponse.json({ error: 'No token returned' }, { status: 500 });
+  }
+
+  const isSecure = (() => {
+    try {
+      return new URL(req.url).protocol === 'https:';
+    } catch {
+      return process.env.NODE_ENV === 'production';
+    }
+  })();
+
+  // If this is a real form navigation (common on iOS Safari),
+  // return HTML 200 with Set-Cookie and client-side redirect.
+  // Avoid Set-Cookie on 30x redirect, which is flaky on iOS.
+  if (acceptHeader.includes('text/html')) {
+    const html = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Signing you in…</title>
+    <meta http-equiv="refresh" content="0;url=/chat" />
+    <noscript>
+      <meta http-equiv="refresh" content="0;url=/chat" />
+    </noscript>
+  </head>
+  <body>Signing you in…</body>
+</html>`;
+    const res = new NextResponse(html, {
+      status: 200,
+      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    });
+    res.cookies.set('jwt', token, cookieOptions(isSecure));
+    return res;
+  }
+
+  // XHR/Fetch clients: set cookie and return JSON
+  const json = NextResponse.json({ ok: true });
+  json.cookies.set('jwt', token, cookieOptions(isSecure));
+  return json;
 }

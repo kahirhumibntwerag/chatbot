@@ -11,7 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import Link from "next/dist/client/link";
+import Link from "next/link";
 import { Loader2 } from "lucide-react";
 
 const Login = () => {
@@ -39,8 +39,6 @@ const Login = () => {
   }, []);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    // On iOS Safari, allow a real form navigation so Set-Cookie reliably persists
-    if (isIOS) return;
     e.preventDefault();
     setIsLoading(true);
     setError("");
@@ -92,35 +90,67 @@ const Login = () => {
           <CardDescription className="text-gray-300">Please enter your credentials</CardDescription>
         </CardHeader>
         <CardContent>
-          <form className="space-y-4" onSubmit={handleSubmit} action="/api/auth/login" method="POST">
-            <Label htmlFor="username" className="text-white">Username</Label>
-            <Input
-              id="username"
-              name="username"
-              type="text"
-              required
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-            />
-            <Label htmlFor="password" className="text-white">Password</Label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <div className="flex items-center space-x-4 mt-4">
-              <Button type="submit" disabled={isLoading}>
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isLoading ? "Signing in..." : "Sign in"}
-              </Button>
-              <Link className="text-blue-300 hover:underline" href="/signup">
-                not registered?
-              </Link>
-            </div>
-          </form>
+          {isIOS ? (
+            <form className="space-y-4" action="/api/auth/login" method="POST">
+              <Label htmlFor="username" className="text-white">Username</Label>
+              <Input
+                id="username"
+                name="username"
+                type="text"
+                required
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+              />
+              <Label htmlFor="password" className="text-white">Password</Label>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <div className="flex items-center space-x-4 mt-4">
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {isLoading ? "Signing in..." : "Sign in"}
+                </Button>
+                <Link className="text-blue-300 hover:underline" href="/signup">
+                  not registered?
+                </Link>
+              </div>
+            </form>
+          ) : (
+            <form className="space-y-4" onSubmit={handleSubmit}>
+              <Label htmlFor="username" className="text-white">Username</Label>
+              <Input
+                id="username"
+                name="username"
+                type="text"
+                required
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+              />
+              <Label htmlFor="password" className="text-white">Password</Label>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <div className="flex items-center space-x-4 mt-4">
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {isLoading ? "Signing in..." : "Sign in"}
+                </Button>
+                <Link className="text-blue-300 hover:underline" href="/signup">
+                  not registered?
+                </Link>
+              </div>
+            </form>
+          )}
         </CardContent>
         {error && <p className="text-red-500 mt-2">{error}</p>}
         {success && <p className="text-green-500 mt-2">{success}</p>}

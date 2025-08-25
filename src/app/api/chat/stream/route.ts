@@ -8,12 +8,11 @@ export async function GET(req: Request) {
   if (!token) return new Response('Unauthorized', { status: 401 })
 
   const qs = new URLSearchParams(url.search)
-  qs.set('token', token)
 
   const backendUrl = `${process.env.NEXT_PUBLIC_API_BASE_URL}/chat/stream?${qs.toString()}`
 
   const backendRes = await fetch(backendUrl, {
-    headers: { Accept: 'text/event-stream' },
+    headers: { Accept: 'text/event-stream', Authorization: `Bearer ${token}` },
     // Important for streaming
     cache: 'no-store',
   })
@@ -32,6 +31,12 @@ export async function GET(req: Request) {
       Connection: 'keep-alive',
     },
   })
+}
+
+export async function HEAD() {
+  const token = (await cookies()).get('jwt')?.value
+  if (!token) return new Response(null, { status: 401 })
+  return new Response(null, { status: 200 })
 }
 
 
