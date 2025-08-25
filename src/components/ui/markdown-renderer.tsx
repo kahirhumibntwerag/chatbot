@@ -18,7 +18,7 @@ export default function MarkdownRenderer({ children }: MarkdownRendererProps) {
   return (
     <div className="space-y-3 markdown-body">
       <Markdown
-        remarkPlugins={[remarkGfm, remarkMath]}
+        remarkPlugins={[remarkMath, remarkGfm]}
         rehypePlugins={[rehypeRaw, rehypeKatex]}
         components={COMPONENTS}
       >
