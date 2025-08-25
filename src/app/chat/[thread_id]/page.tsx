@@ -27,7 +27,7 @@ import { useChatHistory } from "@/hooks/useChatHistory";
 import { StoreIndicator } from "@/components/ui/StoreIndicator";
 // stores now come from settings context
 import { useAutoResize } from "@/hooks/useAutoResizeTextArea";
-import { useAutoScroll } from "@/hooks/useAutoScroll";
+import { useAutoScroll } from "@/hooks/use-auto-scroll";
 import { useChatSubmission } from "@/hooks/useChatSubmission";
 import {
   Select,
@@ -79,9 +79,10 @@ export default function Home() {
   const [animateFirstBatch, setAnimateFirstBatch] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [scrollDown, setScrollDown] = useState(true);
-  const scrollRef = useRef<HTMLDivElement>(
-    null
-  ) as React.RefObject<HTMLDivElement>;
+  const { containerRef, scrollToBottom, handleScroll, shouldAutoScroll, handleTouchStart } = useAutoScroll([
+    normalizedThreadId,
+    messages.length,
+  ]);
   const textareaRef = useRef<HTMLTextAreaElement>(
     null
   ) as React.RefObject<HTMLTextAreaElement>;
@@ -95,8 +96,8 @@ export default function Home() {
   // NEW: Visibility state for thread switch
   const [isThreadVisible, setIsThreadVisible] = useState(false);
 
-  // ADD: scroll-to-bottom visibility state
-  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  // Derive scroll-to-bottom visibility from auto-scroll state
+  const showScrollToBottom = !shouldAutoScroll;
   // model, tools, and stores are from settings context
   const availableModels = [
     "gpt-4o-mini",
@@ -131,61 +132,15 @@ export default function Home() {
   };
 
   useAutoResize(textareaRef, input, { maxHeight: 200 });
-  useAutoScroll(scrollRef, [normalizedThreadId]);
 
-  useEffect(() => {
-    const el = scrollRef.current;
-    const messagesEl = messagesRef.current;
-    if (!el || !messagesEl) return;
-
-    const scrollTimeout = setTimeout(() => {
-      const node = scrollRef.current;
-      const messagesNode = messagesRef.current;
-      if (!node || !messagesNode) return;
-
-      node.scrollTo({
-        top: node.scrollHeight,
-      });
-
-      // after scroll completes, make it fully visible
-      node.style.opacity = "1";
-      setShowScrollToBottom(false);
-    }, 100);
-
-    return () => {
-      clearTimeout(scrollTimeout);
-    };
-  }, [scrollDown]);
+  // Removed manual scrollDown syncing; handled by useAutoScroll
 
   // Initialize or update the visible window when thread or messages change
   useEffect(() => {
     setVisibleStart(Math.max(0, messages.length - WINDOW_SIZE));
   }, [normalizedThreadId, messages.length]);
 
-  // ADD: track scroll position to toggle button with rAF throttle and tolerance
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    let raf = 0;
-    const evaluate = () => {
-      const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
-      const nearBottom = distance <= 24; // tolerance to avoid flicker
-      setShowScrollToBottom(!nearBottom);
-    };
-    const onScroll = () => {
-      if (raf) cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(evaluate);
-    };
-    el.addEventListener("scroll", onScroll, { passive: true });
-    evaluate();
-    const onResize = () => evaluate();
-    window.addEventListener("resize", onResize);
-    return () => {
-      el.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onResize);
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, [normalizedThreadId]);
+  // Removed manual scroll position tracking; derived from shouldAutoScroll
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) =>
     setInput(e.target.value);
@@ -214,13 +169,10 @@ export default function Home() {
   });
 
   // Re-evaluate when content size changes
+  // Keep button state in sync via hook dependencies
   useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
-    const nearBottom = distance <= 24;
-    setShowScrollToBottom(!nearBottom);
-  }, [messages.length, submissionLoading, placeholderHeight]);
+    // no-op; dependencies cause shouldAutoScroll to recompute
+  }, [messages.length, submissionLoading, placeholderHeight, shouldAutoScroll]);
 
   const handleSubmit = () => {
     if (!input.trim()) return;
@@ -235,7 +187,7 @@ export default function Home() {
   // Compute how much visible space remains below the messages inside the scroll area
   useEffect(() => {
     if (!submissionLoading) return;
-    const scrollEl = scrollRef.current;
+    const scrollEl = containerRef.current;
     const listEl = messagesRef.current;
     if (!scrollEl) return;
 
@@ -278,10 +230,9 @@ export default function Home() {
   // Smooth scroll to bottom when loading starts
   useEffect(() => {
     if (!submissionLoading) return;
-    const el = scrollRef.current;
+    const el = containerRef.current;
     if (!el) return;
     el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-    setShowScrollToBottom(false);
   }, [submissionLoading]);
 
   // After first animation plays once, disable further animations
@@ -323,7 +274,12 @@ export default function Home() {
   return (
     <div className="flex h-svh w-full">
       <div className="flex flex-col w-full">
-        <div ref={scrollRef} className="flex overflow-y-auto  relative scrollbar-sleek">
+        <div
+          ref={containerRef}
+          onScroll={handleScroll}
+          onTouchStart={handleTouchStart}
+          className="flex overflow-y-auto  relative scrollbar-sleek"
+        >
           {/* REMOVED old scroll-to-bottom button inside scroll area */}
           <form
             onSubmit={(e) => {
@@ -339,7 +295,7 @@ export default function Home() {
                   loading={submissionLoading}
                   animatedFirstBatch={animateFirstBatch}
                   isThreadVisible={isThreadVisible}
-                  scrollParentRef={scrollRef as React.RefObject<HTMLElement>}
+                  scrollParentRef={containerRef as React.RefObject<HTMLElement>}
                   firstItemIndex={visibleStart}
                   onStartReached={() => {
                     if (visibleStart <= 0) return;
@@ -379,11 +335,7 @@ export default function Home() {
               className="absolute right-4 sm:right-1/2 -top-3 sm:translate-x-1/2 translate-y-[-100%] rounded-full shadow-lg"
               aria-label="Scroll to bottom"
               onClick={() => {
-                const el = scrollRef.current;
-                if (el) {
-                  el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-                  setShowScrollToBottom(false);
-                }
+                scrollToBottom();
               }}
             >
               <ArrowDown className="h-4 w-4" />
