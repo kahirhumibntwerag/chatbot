@@ -439,6 +439,19 @@ pre code {
   word-break: break-word;
 }
 
+/* KaTeX tweaks for better integration in chat markdown */
+.markdown-body .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+.markdown-body .katex-display > .katex {
+  white-space: nowrap;
+}
+.markdown-body .katex {
+  font-size: 1em;
+}
+
 /* Ensure code blocks and pre elements wrap and can scroll horizontally if needed */
 .markdown-body pre,
 .markdown-body code,

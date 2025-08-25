@@ -3,7 +3,9 @@ import React, { JSX, useEffect, useState } from "react"
 import { useTheme } from "next-themes"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
+import remarkMath from "remark-math"
 import rehypeRaw from "rehype-raw"
+import rehypeKatex from "rehype-katex"
 
 import { cn } from "@/lib/utils"
 import { CopyButton } from "@/components/ui/copy-button"
@@ -16,8 +18,8 @@ export default function MarkdownRenderer({ children }: MarkdownRendererProps) {
   return (
     <div className="space-y-3 markdown-body">
       <Markdown
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeRaw]}
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[rehypeRaw, rehypeKatex]}
         components={COMPONENTS}
       >
         {children}
@@ -26,7 +28,7 @@ export default function MarkdownRenderer({ children }: MarkdownRendererProps) {
   )
 }
 
-interface HighlightedPreProps extends React.HTMLAttributes<HTMLPreElement> {
+interface HighlightedPreProps extends React.HTMLAttributes<HTMLElement> {
   children: string
   language: string
 }
@@ -83,7 +85,7 @@ const HighlightedPre = React.memo(
 )
 HighlightedPre.displayName = "HighlightedPre"
 
-interface CodeBlockProps extends React.HTMLAttributes<HTMLPreElement> {
+interface CodeBlockProps extends React.HTMLAttributes<HTMLElement> {
   children: React.ReactNode
   className?: string
   language: string
