@@ -5,8 +5,7 @@ import { AppSidebar } from "@/components/ui/sidebar-app";
 import { useRef, useState, useEffect, SetStateAction } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Plus, Unplug } from "lucide-react";
-import { useParams } from "next/navigation";
+import { Send, Plus, Unplug, ArrowDown } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,18 +13,10 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import FileUploader from "@/components/ui/fileUploader";
 import { motion, AnimatePresence } from "framer-motion";
 import { useChatHistory } from "@/hooks/useChatHistory";
 import { StoreIndicator } from "@/components/ui/StoreIndicator";
-// stores now come from settings context
 import { useAutoResize } from "@/hooks/useAutoResizeTextArea";
 import { useAutoScroll } from "@/hooks/use-auto-scroll";
 import { useChatSubmission } from "@/hooks/useChatSubmission";
@@ -38,19 +29,18 @@ import {
   SelectLabel,
   SelectValue,
 } from "@/components/ui/select";
-// ADD: Stop icon
 import { MessageList } from "@/components/MessageList";
-import { ArrowDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import Image from "next/image"; // ADD
+import Image from "next/image";
 import { Switch } from "@/components/ui/switch";
 import { useChatSettings } from "@/providers/ChatSettingsProvider";
 import { FileIcon, truncateFileName } from "@/components/ui/fileIcon";
 import { useAuth } from "@/providers/AuthProvider";
 import { useThread } from "@/context/ThreadContext";
+import { v4 as uuidv4 } from "uuid";
 
-export default function Home() {
-  const { threadId } = useThread();
+export default function ChatPage() {
+  const { threadId, setThreadId, navigateToThread } = useThread();
   const { isAuthLoading } = useAuth();
   const [input, setInput] = useState("");
   const {
@@ -73,9 +63,18 @@ export default function Home() {
     refreshFiles,
   } = useChatSettings();
   const [newStoreName, setNewStoreName] = useState("");
+
+  // Ensure a thread id exists even on /chat with no URL param
+  useEffect(() => {
+    if (!threadId) {
+      const id = uuidv4();
+      // Update URL and context in one go
+      navigateToThread(id, { replace: true });
+    }
+  }, [threadId, navigateToThread]);
+
   const normalizedThreadId = threadId ?? "";
   const [messages, setMessages] = useChatHistory(normalizedThreadId);
-  // New state to control one-time animation
   const [animateFirstBatch, setAnimateFirstBatch] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [scrollDown, setScrollDown] = useState(true);
@@ -88,30 +87,24 @@ export default function Home() {
   ) as React.RefObject<HTMLTextAreaElement>;
   const messagesRef = useRef<HTMLDivElement>(null);
   const [placeholderHeight, setPlaceholderHeight] = useState(0);
-  // Tail-window rendering: only render last N initially, load older on scroll up
   const WINDOW_SIZE = 50;
   const LOAD_BATCH = 50;
   const [visibleStart, setVisibleStart] = useState(0);
-
-  // NEW: Visibility state for thread switch
   const [isThreadVisible, setIsThreadVisible] = useState(false);
-
-  // Derive scroll-to-bottom visibility from auto-scroll state
   const showScrollToBottom = !shouldAutoScroll;
-  // model, tools, and stores are from settings context
   const availableModels = [
     "gpt-4o-mini",
     "gpt-4o",
     "gpt-5",
     "gpt-5-mini",
     "gpt-5-nano",
-  ]; // edit as needed
+  ];
   const tools = [
     { label: "internet search", id: "tavily_search" },
     { label: "knowledge base search", id: "search_documents" },
     { label: "search arxiv", id: "arxiv_search" },
   ];
-  const isOpenAIModel = (m: string) => m.startsWith("gpt-"); // ADD helper
+  const isOpenAIModel = (m: string) => m.startsWith("gpt-");
 
   const handleStoreSelect = (val: string) => {
     if (val === "__create__") {
@@ -121,7 +114,6 @@ export default function Home() {
     setStoreName(val);
   };
 
-  // Update handleCreateStore to use the hook
   const handleCreateStore = async () => {
     const success = await createStore(newStoreName);
     if (success) {
@@ -133,14 +125,9 @@ export default function Home() {
 
   useAutoResize(textareaRef, input, { maxHeight: 200 });
 
-  // Removed manual scrollDown syncing; handled by useAutoScroll
-
-  // Initialize or update the visible window when thread or messages change
   useEffect(() => {
     setVisibleStart(Math.max(0, messages.length - WINDOW_SIZE));
   }, [normalizedThreadId, messages.length]);
-
-  // Removed manual scroll position tracking; derived from shouldAutoScroll
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) =>
     setInput(e.target.value);
@@ -155,7 +142,7 @@ export default function Home() {
   const {
     isLoading: submissionLoading,
     submitMessage,
-    /* ADD: */ cancel: cancelSubmission,
+    cancel: cancelSubmission,
   } = useChatSubmission({
     thread_id: normalizedThreadId,
     storeName,
@@ -168,15 +155,12 @@ export default function Home() {
     setScrollDown,
   });
 
-  // Re-evaluate when content size changes
-  // Keep button state in sync via hook dependencies
   useEffect(() => {
-    // no-op; dependencies cause shouldAutoScroll to recompute
+    // trigger recompute in auto-scroll hook
   }, [messages.length, submissionLoading, placeholderHeight, shouldAutoScroll]);
 
   const handleSubmit = () => {
     if (!input.trim()) return;
-    // Trigger animation ONLY if this is the very first message in this thread
     if (messages.length === 0) {
       setAnimateFirstBatch(true);
     }
@@ -184,7 +168,6 @@ export default function Home() {
     setInput("");
   };
 
-  // Compute how much visible space remains below the messages inside the scroll area
   useEffect(() => {
     if (!submissionLoading) return;
     const scrollEl = containerRef.current;
@@ -205,7 +188,6 @@ export default function Home() {
       setPlaceholderHeight(viewportHeight + lastImageHeight);
     };
 
-    // Recompute on resize and once images load
     compute();
     window.addEventListener("resize", compute);
     const id = requestAnimationFrame(compute);
@@ -216,7 +198,6 @@ export default function Home() {
       const handler = () => compute();
       handlers.push(() => img.removeEventListener("load", handler));
       img.addEventListener("load", handler, { once: true });
-      // If the image is already loaded, compute immediately
       if ((img as HTMLImageElement).complete) compute();
     });
 
@@ -227,7 +208,6 @@ export default function Home() {
     };
   }, [submissionLoading, messages.length]);
 
-  // Smooth scroll to bottom when loading starts
   useEffect(() => {
     if (!submissionLoading) return;
     const el = containerRef.current;
@@ -235,28 +215,24 @@ export default function Home() {
     el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [submissionLoading]);
 
-  // After first animation plays once, disable further animations
   useEffect(() => {
     if (animateFirstBatch && messages.length > 0) {
-      // Allow one paint frame with animation, then disable
       const t = requestAnimationFrame(() => setAnimateFirstBatch(false));
       return () => cancelAnimationFrame(t);
     }
   }, [animateFirstBatch, messages.length]);
 
-  // NEW: On thread change, render at opacity-0 then set to 100 next frame (no CSS transition)
   useEffect(() => {
     const id = requestAnimationFrame(() => setIsThreadVisible(true));
     return () => cancelAnimationFrame(id);
   }, [normalizedThreadId]);
 
-  // Preload last few images on thread change to reduce pop-in when user scrolls near bottom
   useEffect(() => {
     const container = messagesRef.current;
     if (!container) return;
     const imgs = Array.from(container.querySelectorAll("img")) as HTMLImageElement[];
     if (!imgs.length) return;
-    const lastFew = imgs.slice(-6); // preload last 6 images
+    const lastFew = imgs.slice(-6);
     lastFew.forEach((img) => {
       if (img.complete) return;
       const src = img.getAttribute("src");
@@ -266,7 +242,6 @@ export default function Home() {
     });
   }, [normalizedThreadId]);
 
-  // If auth or thread id is loading, render a minimal placeholder to avoid flicker
   if (isAuthLoading || !normalizedThreadId) {
     return <div className="flex h-svh w-full" />;
   }
@@ -280,7 +255,6 @@ export default function Home() {
           onTouchStart={handleTouchStart}
           className="flex overflow-y-auto  relative scrollbar-sleek"
         >
-          {/* REMOVED old scroll-to-bottom button inside scroll area */}
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -320,13 +294,11 @@ export default function Home() {
           </form>
         </div>
 
-        {/* Fixed input container at the bottom */}
         <div
           className={`sticky ${
             messages.length > 0 ? "bottom-2 " : "bottom-[65%] h-0"
           } bg-background/50 backdrop-blur-md relative pb-[env(safe-area-inset-bottom)] `}
         >
-          {/* NEW: scroll-to-bottom button placed just above the input area */}
           {showScrollToBottom && (
             <Button
               type="button"
@@ -407,7 +379,6 @@ export default function Home() {
                           <SelectItem key={m} value={m}>
                             <span className="flex items-center gap-2">
                               {isOpenAIModel(m) && (
-                                // Single SVG, recolor via CSS mask so we can theme it
                                 <span
                                   aria-hidden="true"
                                   className="w-4 h-4 inline-block bg-emerald-600 dark:bg-emerald-300"
@@ -424,8 +395,6 @@ export default function Home() {
                       </SelectGroup>
                     </SelectContent>
                   </Select>
-                  {/* Tools menu beside model */}
-                 
                 </div>
 
                 <div className="flex items-center gap-2 w-full sm:w-auto justify-end flex-wrap mt-2 sm:mt-0">
@@ -527,9 +496,7 @@ export default function Home() {
                     </DropdownMenuContent>
                   </DropdownMenu>
                   <Button
-                    // CHANGE: type=button, dynamic handler based on mode
                     type="button"
-                    // Keep enabled while loading to allow "Stop"
                     disabled={!input.trim() && !submissionLoading}
                     className={`w-9 h-9 rounded-full flex items-center justify-center ${
                       submissionLoading
@@ -539,10 +506,8 @@ export default function Home() {
                     onClick={(e) => {
                       e.preventDefault();
                       if (submissionLoading) {
-                        // Stop mode
                         cancelSubmission?.();
                       } else {
-                        // Submit mode
                         handleSubmit();
                       }
                     }}
@@ -552,7 +517,6 @@ export default function Home() {
                     title={submissionLoading ? "Stop generating" : "Send"}
                   >
                     {submissionLoading ? (
-                      // Stop + subtle wobble/pulse animation
                       <motion.span
                         initial={{ scale: 0.95 }}
                         animate={{ scale: [1, 1.09, 1] }}
@@ -566,7 +530,6 @@ export default function Home() {
                         <span className="w-3 h-3 bg-primary"></span>
                       </motion.span>
                     ) : (
-                      // Send with slight hover/tap motion
                       <motion.span
                         initial={{ x: 0 }}
                         whileHover={{ x: 1 }}
@@ -586,3 +549,5 @@ export default function Home() {
     </div>
   );
 }
+
+

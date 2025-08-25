@@ -64,7 +64,8 @@ export function AuthProvider({ children, requireAuth = false }: { children: Reac
 	useEffect(() => {
 		if (didFetchRef.current) return;
 		didFetchRef.current = true;
-		fetchMe();
+		let callback = setTimeout(fetchMe, 300) ;
+		return () => clearTimeout(callback);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 

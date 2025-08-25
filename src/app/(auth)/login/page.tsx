@@ -69,8 +69,9 @@ const Login = () => {
       // Ensure the cookie is usable server-side before navigating
       await fetch(`/api/auth/me`, { credentials: "include", cache: "no-store" }).catch(() => {});
 
-      // Use a full navigation so middleware/auth see the fresh cookie
-      window.location.assign("/chat");
+      // Redirect directly to returned chat thread if provided
+      const target = data?.redirectTo || "/chat";
+      window.location.assign(target);
     } catch (err) {
       setError("An unexpected error occurred. Please try again.");
       console.error(err);

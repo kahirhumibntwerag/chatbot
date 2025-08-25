@@ -57,6 +57,11 @@ export async function POST(req: Request) {
     }
   })();
 
+  // Generate a new thread id to redirect the user directly into a chat
+  const threadId = (globalThis as any).crypto?.randomUUID
+    ? (globalThis as any).crypto.randomUUID()
+    : `${Math.random().toString(36).slice(2)}${Date.now()}`;
+
   // If this is a real document navigation (common on iOS Safari),
   // return HTML 200 with Set-Cookie and delayed client-side redirect.
   // Avoid Set-Cookie on 30x redirect, which is flaky on iOS, and give
@@ -67,8 +72,8 @@ export async function POST(req: Request) {
   <head>
     <meta charset="utf-8" />
     <title>Signing you in…</title>
-    <meta http-equiv="refresh" content="1;url=/chat" />
-    <noscript><meta http-equiv="refresh" content="2;url=/chat" /></noscript>
+    <meta http-equiv="refresh" content="1;url=/chat/${threadId}" />
+    <noscript><meta http-equiv="refresh" content="2;url=/chat/${threadId}" /></noscript>
   </head>
   <body>Signing you in…</body>
 </html>`;
@@ -84,7 +89,7 @@ export async function POST(req: Request) {
   }
 
   // XHR/Fetch clients: set cookie and return JSON
-  const json = NextResponse.json({ ok: true });
+  const json = NextResponse.json({ ok: true, redirectTo: `/chat/${threadId}` });
   json.cookies.set('jwt', token, cookieOptions(isSecure));
   return json;
 }
