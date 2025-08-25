@@ -15,6 +15,9 @@ function cookieOptions(isSecure: boolean) {
 export async function POST(req: Request) {
   const contentType = req.headers.get('content-type') || '';
   const acceptHeader = req.headers.get('accept') || '';
+  const secFetchMode = req.headers.get('sec-fetch-mode') || '';
+  const secFetchDest = req.headers.get('sec-fetch-dest') || '';
+  const isDocumentNavigation = secFetchMode === 'navigate' || secFetchDest === 'document';
 
   // Support both real form posts and fetch
   let username = '';
@@ -54,25 +57,27 @@ export async function POST(req: Request) {
     }
   })();
 
-  // If this is a real form navigation (common on iOS Safari),
-  // return HTML 200 with Set-Cookie and client-side redirect.
-  // Avoid Set-Cookie on 30x redirect, which is flaky on iOS.
-  if (acceptHeader.includes('text/html')) {
+  // If this is a real document navigation (common on iOS Safari),
+  // return HTML 200 with Set-Cookie and delayed client-side redirect.
+  // Avoid Set-Cookie on 30x redirect, which is flaky on iOS, and give
+  // the browser a moment to persist the cookie before navigating.
+  if (isDocumentNavigation || acceptHeader.includes('text/html')) {
     const html = `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <title>Signing you in…</title>
-    <meta http-equiv="refresh" content="0;url=/chat" />
-    <noscript>
-      <meta http-equiv="refresh" content="0;url=/chat" />
-    </noscript>
+    <meta http-equiv="refresh" content="1;url=/chat" />
+    <noscript><meta http-equiv="refresh" content="2;url=/chat" /></noscript>
   </head>
   <body>Signing you in…</body>
 </html>`;
     const res = new NextResponse(html, {
       status: 200,
-      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+      headers: {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+      },
     });
     res.cookies.set('jwt', token, cookieOptions(isSecure));
     return res;
