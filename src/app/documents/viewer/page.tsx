@@ -2,6 +2,8 @@
 
 import dynamic from "next/dynamic";
 import { Worker } from "@react-pdf-viewer/core";
+import { defaultLayoutPlugin } from "@react-pdf-viewer/default-layout";
+import { highlightPlugin } from "@react-pdf-viewer/highlight";
 import { useMemo } from "react";
 
 const Viewer = dynamic(
@@ -16,11 +18,17 @@ export default function PdfViewerPage() {
     []
   );
 
+  const defaultLayout = defaultLayoutPlugin();
+  const highlight = highlightPlugin();
+
   return (
     <div className="h-screen w-full p-4">
       <div className="mx-auto h-[85vh] max-w-5xl rounded-md border bg-background">
         <Worker workerUrl={workerUrl}>
-          <Viewer fileUrl="/Space Weather - 2020 - Upendran - Solar Wind Prediction Using Deep Learning (1).pdf" />
+          <Viewer
+            fileUrl="/Space Weather - 2020 - Upendran - Solar Wind Prediction Using Deep Learning (1).pdf"
+            plugins={[defaultLayout, highlight]}
+          />
         </Worker>
       </div>
     </div>

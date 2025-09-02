@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { Worker } from "@react-pdf-viewer/core";
+import { defaultLayoutPlugin } from "@react-pdf-viewer/default-layout";
+import { highlightPlugin } from "@react-pdf-viewer/highlight";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -265,6 +267,8 @@ export default function DocumentsPage() {
     () => dynamic(async () => (await import("@react-pdf-viewer/core")).Viewer, { ssr: false }),
     []
   );
+  const defaultLayout = defaultLayoutPlugin();
+  const highlight = highlightPlugin();
   const workerUrl = useMemo(
     () => `https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js`,
     []
@@ -743,7 +747,7 @@ export default function DocumentsPage() {
                   <div className="h-full">
                     {t.pdfUrl ? (
                       <Worker workerUrl={workerUrl}>
-                        <PdfViewer fileUrl={t.pdfUrl} />
+                        <PdfViewer fileUrl={t.pdfUrl} plugins={[defaultLayout, highlight]} />
                       </Worker>
                     ) : (
                       <div className="p-4 text-sm text-muted-foreground">No PDF URL</div>
