@@ -75,6 +75,7 @@ export default function ChatPage() {
 
   const normalizedThreadId = threadId ?? "";
   const [messages, setMessages] = useChatHistory(normalizedThreadId);
+  console.log(messages)
   const [animateFirstBatch, setAnimateFirstBatch] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [scrollDown, setScrollDown] = useState(true);

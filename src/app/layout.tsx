@@ -1,5 +1,6 @@
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
+import "@react-pdf-viewer/core/lib/styles/index.css";
 import "katex/dist/katex.min.css";
 import { ThemeProvider } from "@/context/ThemeProvider";
 import type { Metadata } from "next";

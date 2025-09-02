@@ -9,28 +9,29 @@ const ScrollArea = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<typeof ScrollAreaPrimitive.Viewport> & {
     rootClassName?: string
+    hideScrollbar?: boolean
   }
 >(function ScrollArea(
-  { className, rootClassName, children, ...props },
+  { className, rootClassName, hideScrollbar, children, ...props },
   ref
 ) {
   return (
     <ScrollAreaPrimitive.Root
       data-slot="scroll-area"
-      className={cn("relative", rootClassName)}
+      className={cn("relative overflow-hidden", rootClassName)}
     >
       <ScrollAreaPrimitive.Viewport
         ref={ref}
         data-slot="scroll-area-viewport"
         className={cn(
-          "focus-visible:ring-ring/50 size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:outline-1",
+          "focus-visible:ring-ring/50 size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:outline-1 overflow-auto",
           className
         )}
         {...props}
       >
         {children}
       </ScrollAreaPrimitive.Viewport>
-      <ScrollBar />
+      {hideScrollbar ? null : <ScrollBar />}
       <ScrollAreaPrimitive.Corner />
     </ScrollAreaPrimitive.Root>
   )
@@ -50,9 +51,9 @@ function ScrollBar({
       className={cn(
         "flex touch-none p-px transition-colors select-none",
         orientation === "vertical" &&
-          "h-full w-2.5 border-l border-l-transparent",
+          "h-full w-1.5 border-l border-l-transparent",
         orientation === "horizontal" &&
-          "h-2.5 flex-col border-t border-t-transparent",
+          "h-1.5 flex-col border-t border-t-transparent",
         className
       )}
       {...props}

@@ -463,6 +463,24 @@ pre code {
   max-width: 100%;
 }
 
+/* Utility: hide scrollbars but keep scrolling */
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;     /* Firefox */
+}
+.no-scrollbar::-webkit-scrollbar { /* Chrome, Safari */
+  display: none;
+}
+
+/* Utility: stable scroll container to prevent flicker during repaint */
+.scroll-container {
+  -webkit-overflow-scrolling: touch;
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  contain: layout paint;
+}
+
 /* Shiki output often uses .shiki or pre>code blocks; ensure wrapping */
 .shiki {
   overflow-x: auto;
